@@ -156,10 +156,11 @@ async def process_learn_english(callback_query: CallbackQuery):
     try:
         await callback_query.answer()
         chat_id = callback_query.message.chat.id  # Топтың чат ID-ін аламыз
-        await bot.send_message(chat_id, "Ағылшын үйренуді бастайық! 📝\nСұрақ: What is the capital of France?")
+        await bot.send_message(chat_id, "Сұрақ: What is the capital of France?")
     except Exception as e:
         logger.error(f"Error in process_learn_english: {e}")
         await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
+
 
 
 @dp.callback_query(lambda c: c.data.startswith("answer_"))
