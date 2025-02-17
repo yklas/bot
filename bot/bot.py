@@ -58,11 +58,11 @@ BASIC_RESPONSES = {
 
 # User chat IDs storage
 active_users = set()
-
-@dp.message(CommandStart())
-   # Вебхукті өшіру: күтуге қалдырылған хабарламаларды да өшіріп тастайды
+  # Вебхукті өшіру: күтуге қалдырылған хабарламаларды да өшіріп тастайды
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
+@dp.message(CommandStart())
+
 async def main():
 
 async def start_command(message: Message):
