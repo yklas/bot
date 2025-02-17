@@ -508,6 +508,10 @@ async def start_command(message: Message):
         
         if message.chat.type in ['group', 'supergroup']:
             group_ids.add(chat_id)
+            # Создаем упрощенную клавиатуру для группы
+            group_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
+            ])
             await message.reply(
                 "Ассалаумағалейкум, топ мүшелері! 👋\n\n"
                 "Мен сіздердің көмекшілеріңізбін!\n"
@@ -516,7 +520,8 @@ async def start_command(message: Message):
                 "- Топ белсенділігін арттыру\n"
                 "- Қызықты тапсырмалар\n"
                 "- Пайдалы ескертулер\n\n"
-                "Топта белсенді болыңыздар! 🌟"
+                "Топта белсенді болыңыздар! 🌟",
+                reply_markup=group_keyboard  # Добавляем клавиатуру для группы
             )
             # Топ үшін арнайы жоспарлау
             await schedule_group_activities(chat_id)
@@ -542,11 +547,17 @@ async def handle_messages(message: Message):
     try:
         text = message.text.lower() if message.text else ""
         if text in BASIC_RESPONSES:
-            # Only add keyboard for individual chats
-            keyboard = get_english_menu() if message.chat.type == 'private' else None
+            # Добавляем клавиатуру в зависимости от типа чата
+            if message.chat.type == 'private':
+                keyboard = get_english_menu()
+            else:
+                # Упрощенная клавиатура для групп
+                keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
+                ])
             await message.answer(BASIC_RESPONSES[text], reply_markup=keyboard)
         else:
-            # Only respond to unrecognized messages in private chats
+            # Отвечаем только на нераспознанные сообщения в личных чатах
             if message.chat.type == 'private':
                 await message.answer(
                     "Кешіріңіз, мен сізді түсінбедім. Басқаша түсіндіріп көріңізші 😊",
@@ -555,6 +566,30 @@ async def handle_messages(message: Message):
     except Exception as e:
         logger.error(f"Error in handle_messages: {e}")
         await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
+        def get_group_keyboard() -> InlineKeyboardMarkup:
+    """Create simplified keyboard for group chats"""
+    keyboard = [
+        [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")],
+        [InlineKeyboardButton(text="💭 Пікір қалдыру", callback_data="leave_feedback")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    async def send_scheduled_message(chat_id: int, message: str):
+    """Send scheduled message to user or group"""
+    try:
+        # Получаем соответствующую клавиатуру в зависимости от типа чата
+        if chat_id in group_ids:
+            keyboard = get_group_keyboard()
+        else:
+            keyboard = get_english_menu()
+            
+        await bot.send_message(chat_id, message, reply_markup=keyboard)
+        logger.info(f"Scheduled message sent to {chat_id}")
+    except Exception as e:
+        logger.error(f"Error sending scheduled message to {chat_id}: {e}")
+        if chat_id in active_users:
+            active_users.discard(chat_id)
+        if chat_id in group_ids:
+            group_ids.discard(chat_id)
 
 async def main():
     """Main function to run the bot"""
@@ -570,14 +605,6 @@ async def main():
         # Proper cleanup
         await bot.session.close()
         scheduler.shutdown()
-
-async def main():
-    scheduler.start()
-    await dp.start_polling(bot)
-
-if __name__ == "__main__":
-    asyncio.run(main())
-
 
 if __name__ == "__main__":
     asyncio.run(main())
