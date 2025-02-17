@@ -58,9 +58,7 @@ BASIC_RESPONSES = {
 
 # User chat IDs storage
 active_users = set()
-  # Вебхукті өшіру: күтуге қалдырылған хабарламаларды да өшіріп тастайды
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+
 @dp.message(CommandStart())
 
 async def main():
@@ -115,6 +113,9 @@ async def schedule_reminders(chat_id: int):
 async def main():
     try:
         logger.info("Starting bot...")
+        # Delete webhook before polling
+        await bot.delete_webhook(drop_pending_updates=True)
+        # Start polling
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"Error starting bot: {e}")
