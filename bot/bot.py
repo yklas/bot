@@ -112,6 +112,7 @@ async def send_english_question(chat_id: int) -> None:
         
         # Select a random question
         question = random.choice(ENGLISH_QUESTIONS)
+        logger.info(f"Selected question: {question['id']}")
         
         # Create options keyboard
         options_keyboard = []
@@ -131,14 +132,24 @@ async def send_english_question(chat_id: int) -> None:
         # Store current question for user
         user_progress[chat_id]["current_question"] = question
         
-        # Send question with image
-        await bot.send_photo(
-            chat_id=chat_id,
-            photo=question["image_url"],
-            caption=f"❓ {question['question']}",
-            reply_markup=markup
-        )
-        
+        try:
+            # Send question with image
+            await bot.send_photo(
+                chat_id=chat_id,
+                photo=question["image_url"],
+                caption=f"❓ {question['question']}",
+                reply_markup=markup
+            )
+            logger.info(f"Question sent successfully to user {chat_id}")
+        except Exception as photo_error:
+            logger.error(f"Error sending photo: {photo_error}")
+            # If photo fails, send without photo
+            await bot.send_message(
+                chat_id=chat_id,
+                text=f"❓ {question['question']}",
+                reply_markup=markup
+            )
+            
     except Exception as e:
         logger.error(f"Error in send_english_question: {e}")
         await bot.send_message(
