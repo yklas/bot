@@ -102,23 +102,48 @@ SALAUAT_MESSAGE = "Бүгінгі салауатты ұмытпайық! Алл�
 import random
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
+# Update the user progress tracking structure
+user_progress: Dict[int, Dict] = {}
+
 async def send_english_question(chat_id: int) -> None:
     """Топқа ағылшын тілін үйренуге арналған сұрақты жібереді."""
     try:
-        question = random.choice(ENGLISH_QUESTIONS)  # Кездейсоқ сұрақ таңдау
-        logger.info(f"Selected question: {question['id']} for chat {chat_id}")
+        # Get previously asked questions for this chat
+        asked_questions = user_progress.get(chat_id, {}).get("asked_questions", [])
         
-        # Жауап нұсқалары бар батырмалар жасау
+        # Filter out questions that haven't been asked yet
+        available_questions = [q for q in ENGLISH_QUESTIONS if q["id"] not in asked_questions]
+        
+        # If all questions have been asked, reset the list
+        if not available_questions:
+            asked_questions = []
+            available_questions = ENGLISH_QUESTIONS
+        
+        # Select a random question from available questions
+        question = random.choice(available_questions)
+        
+        # Initialize or update user progress
+        if chat_id not in user_progress:
+            user_progress[chat_id] = {
+                "asked_questions": [],
+                "current_question": None,
+                "correct_answers": 0,
+                "questions_answered": 0
+            }
+        
+        # Update current question and asked questions
+        user_progress[chat_id]["current_question"] = question
+        user_progress[chat_id]["asked_questions"] = asked_questions + [question["id"]]
+        
+        # Create keyboard with options
         options_keyboard = []
         for option in question["options"]:
             callback_data = f"answer_{question['id']}_{option}"
             options_keyboard.append([InlineKeyboardButton(text=option, callback_data=callback_data)])
         
-        # Мәзірге қайту батырмасы
         options_keyboard.append([InlineKeyboardButton(text="🔙 Басты мәзір", callback_data="main_menu")])
         markup = InlineKeyboardMarkup(inline_keyboard=options_keyboard)
         
-        # Сұрақты суретпен бірге жіберу
         try:
             await bot.send_photo(
                 chat_id=chat_id,
@@ -126,10 +151,9 @@ async def send_english_question(chat_id: int) -> None:
                 caption=f"❓ {question['question']}",
                 reply_markup=markup
             )
-            logger.info(f"Question sent successfully to chat {chat_id}")
+            logger.info(f"Question {question['id']} sent successfully to chat {chat_id}")
         except Exception as photo_error:
             logger.error(f"Error sending photo: {photo_error}")
-            # Егер суретті жіберу мүмкін болмаса, сұрақты жай ғана мәтінмен жібереді
             await bot.send_message(
                 chat_id=chat_id,
                 text=f"❓ {question['question']}",
@@ -142,26 +166,65 @@ async def send_english_question(chat_id: int) -> None:
             text="Қателік орын алды. Қайтадан көріңіз. /start"
         )
 
-def get_english_menu() -> InlineKeyboardMarkup:
-    """Create English learning menu"""
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🇬🇧 Ағылшын тілін үйрену", callback_data="learn_english")],
-        [InlineKeyboardButton(text="📊 Менің прогрессім", callback_data="my_progress")]
-    ])
-    return keyboard
-
-@dp.callback_query(lambda c: c.data == "learn_english")
-async def process_learn_english(callback_query: CallbackQuery):
-    """Ағылшын тілін үйренуді бастағанда сұрақты топқа жібереді."""
+@dp.callback_query(lambda c: c.data.startswith("answer_"))
+async def process_answer(callback_query: CallbackQuery):
+    """Handle answer selection"""
     try:
-        await callback_query.answer()
-        chat_id = callback_query.message.chat.id  # Топтың чат ID-ін алу
-        await send_english_question(chat_id)  # Топқа сұрақ жіберу
+        user_id = callback_query.message.chat.id  # Changed from from_user.id to message.chat.id
+        _, question_id, selected_answer = callback_query.data.split("_")
+        
+        # Make sure user progress exists
+        if user_id not in user_progress:
+            user_progress[user_id] = {
+                "asked_questions": [],
+                "current_question": None,
+                "correct_answers": 0,
+                "questions_answered": 0
+            }
+        
+        current_question = user_progress[user_id].get("current_question")
+        
+        if current_question and current_question["id"] == question_id:
+            if selected_answer == current_question["correct"]:
+                user_progress[user_id]["correct_answers"] += 1
+                await callback_query.answer("🎉 Дұрыс! / Correct!")
+            else:
+                await callback_query.answer(
+                    f"❌ Қате! Дұрыс жауап: {current_question['correct']}"
+                )
+            
+            user_progress[user_id]["questions_answered"] += 1
+            
+            # Send result message
+            result_text = (
+                f"✅ Дұрыс жауаптар: {user_progress[user_id]['correct_answers']}\n"
+                f"📝 Барлық жауаптар: {user_progress[user_id]['questions_answered']}"
+            )
+            
+            # Create keyboard for next question
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📚 Келесі сұрақ", callback_data="next_question")],
+                [InlineKeyboardButton(text="🔙 Басты мәзір", callback_data="main_menu")]
+            ])
+            
+            await callback_query.message.edit_reply_markup(reply_markup=None)  # Remove old keyboard
+            await callback_query.message.answer(result_text, reply_markup=keyboard)
+        
     except Exception as e:
-        logger.error(f"Error in process_learn_english: {e}")
+        logger.error(f"Error in process_answer: {e}")
         await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
 
-
+# Add new handler for next question button
+@dp.callback_query(lambda c: c.data == "next_question")
+async def next_question(callback_query: CallbackQuery):
+    """Handle next question button"""
+    try:
+        await callback_query.answer()
+        chat_id = callback_query.message.chat.id
+        await send_english_question(chat_id)
+    except Exception as e:
+        logger.error(f"Error in next_question: {e}")
+        await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
 
 
 @dp.callback_query(lambda c: c.data.startswith("answer_"))
