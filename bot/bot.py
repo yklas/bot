@@ -146,7 +146,7 @@ async def send_group_activity_prompt(chat_id: int):
 english_schedule = [
     {'hour': 10, 'minute': 30},  # 10:30
     {'hour': 15, 'minute': 45},  # 15:45
-    {'hour': 20, 'minute': 30}   # 20:30
+    {'hour': 20, 'minute': 32}   # 20:30
 ]
 
 async def schedule_group_activities(chat_id: int):
