@@ -566,29 +566,15 @@ async def handle_messages(message: Message):
     except Exception as e:
         logger.error(f"Error in handle_messages: {e}")
         await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
-        def get_group_keyboard() -> InlineKeyboardMarkup:
+
+def get_group_keyboard() -> InlineKeyboardMarkup:
+    """Create simplified keyboard for group chats"""
     keyboard = [
         [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")],
         [InlineKeyboardButton(text="💭 Пікір қалдыру", callback_data="leave_feedback")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
-    async def send_scheduled_message(chat_id: int, message: str):
-    try:
-        # Получаем соответствующую клавиатуру в зависимости от типа чата
-        if chat_id in group_ids:
-            keyboard = get_group_keyboard()
-        else:
-            keyboard = get_english_menu()
-            
-        await bot.send_message(chat_id, message, reply_markup=keyboard)
-        logger.info(f"Scheduled message sent to {chat_id}")
-    except Exception as e:
-        logger.error(f"Error sending scheduled message to {chat_id}: {e}")
-        if chat_id in active_users:
-            active_users.discard(chat_id)
-        if chat_id in group_ids:
-            group_ids.discard(chat_id)
-
+    
 async def main():
     """Main function to run the bot"""
     try:
