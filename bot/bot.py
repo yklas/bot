@@ -142,6 +142,13 @@ async def send_group_activity_prompt(chat_id: int):
     except Exception as e:
         logger.error(f"Error sending group activity prompt: {e}")
 
+# Сағат пен минутты көрсетіп жоспарлау
+english_schedule = [
+    {'hour': 10, 'minute': 30},  # 10:30
+    {'hour': 15, 'minute': 45},  # 15:45
+    {'hour': 20, 'minute': 30}   # 20:30
+]
+
 async def schedule_group_activities(chat_id: int):
     """Schedule group-specific activities"""
     try:
@@ -156,19 +163,19 @@ async def schedule_group_activities(chat_id: int):
             replace_existing=True
         )
 
-        # Ағылшын тілі белсенділіктері (күніне 3 рет)
-        for hour in [10, 15, 19]:
+        # Ағылшын тілі белсенділіктері
+        for schedule in english_schedule:
             scheduler.add_job(
                 send_group_english_activity,
                 'cron',
-                hour=hour,
-                minute=0,
+                hour=schedule['hour'],
+                minute=schedule['minute'],
                 args=[chat_id],
-                id=f'group_english_{hour}_{chat_id}',
+                id=f'group_english_{schedule["hour"]}_{schedule["minute"]}_{chat_id}',
                 replace_existing=True
             )
 
-        # Топ белсенділігін арттыру (күніне 2 рет)
+        # Топ белсенділігін арттыру
         for hour in [13, 17]:
             scheduler.add_job(
                 send_group_activity_prompt,
