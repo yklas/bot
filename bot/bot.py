@@ -99,29 +99,26 @@ AFTERNOON_MESSAGE = "🇬🇧 Қалай, бауырым, ағылшын тіл�
 EVENING_MESSAGE = "📝 Күн қорытындысы! Бүгінгі тапсырмаларды орындап бітірдің бе? Share your progress! 🎯"
 SALAUAT_MESSAGE = "Бүгінгі салауатты ұмытпайық! Аллахумма солли 'аля саййидина Мухаммадин уа 'аля али саййидина Мухаммад"
 
-async def send_english_question(chat_id: int, user_id: int) -> None:
-    """Send a random English question to a specified chat and save progress for the given user"""
+import random
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+async def send_english_question(chat_id: int) -> None:
+    """Топқа ағылшын тілін үйренуге арналған сұрақты жібереді."""
     try:
-        if user_id not in user_progress:
-            user_progress[user_id] = {
-                "correct_answers": 0,
-                "questions_answered": 0,
-                "current_question": None
-            }
+        question = random.choice(ENGLISH_QUESTIONS)  # Кездейсоқ сұрақ таңдау
+        logger.info(f"Selected question: {question['id']} for chat {chat_id}")
         
-        question = random.choice(ENGLISH_QUESTIONS)
-        logger.info(f"Selected question: {question['id']} for user {user_id}")
-        
+        # Жауап нұсқалары бар батырмалар жасау
         options_keyboard = []
         for option in question["options"]:
             callback_data = f"answer_{question['id']}_{option}"
             options_keyboard.append([InlineKeyboardButton(text=option, callback_data=callback_data)])
         
+        # Мәзірге қайту батырмасы
         options_keyboard.append([InlineKeyboardButton(text="🔙 Басты мәзір", callback_data="main_menu")])
         markup = InlineKeyboardMarkup(inline_keyboard=options_keyboard)
         
-        user_progress[user_id]["current_question"] = question
-        
+        # Сұрақты суретпен бірге жіберу
         try:
             await bot.send_photo(
                 chat_id=chat_id,
@@ -129,9 +126,10 @@ async def send_english_question(chat_id: int, user_id: int) -> None:
                 caption=f"❓ {question['question']}",
                 reply_markup=markup
             )
-            logger.info(f"Question sent successfully to chat {chat_id} for user {user_id}")
+            logger.info(f"Question sent successfully to chat {chat_id}")
         except Exception as photo_error:
             logger.error(f"Error sending photo: {photo_error}")
+            # Егер суретті жіберу мүмкін болмаса, сұрақты жай ғана мәтінмен жібереді
             await bot.send_message(
                 chat_id=chat_id,
                 text=f"❓ {question['question']}",
@@ -143,6 +141,7 @@ async def send_english_question(chat_id: int, user_id: int) -> None:
             chat_id=chat_id,
             text="Қателік орын алды. Қайтадан көріңіз. /start"
         )
+
 def get_english_menu() -> InlineKeyboardMarkup:
     """Create English learning menu"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -153,13 +152,15 @@ def get_english_menu() -> InlineKeyboardMarkup:
 
 @dp.callback_query(lambda c: c.data == "learn_english")
 async def process_learn_english(callback_query: CallbackQuery):
+    """Ағылшын тілін үйренуді бастағанда сұрақты топқа жібереді."""
     try:
         await callback_query.answer()
-        chat_id = callback_query.message.chat.id  # Топтың чат ID-ін аламыз
-        await bot.send_message(chat_id, "Сұрақ: What is the capital of France?")
+        chat_id = callback_query.message.chat.id  # Топтың чат ID-ін алу
+        await send_english_question(chat_id)  # Топқа сұрақ жіберу
     except Exception as e:
         logger.error(f"Error in process_learn_english: {e}")
         await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
+
 
 
 
