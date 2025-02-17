@@ -99,6 +99,89 @@ SALAUAT_MESSAGE = "Бүгінгі салауатты ұмытпайық! Алл�
 
 # Initialize scheduler
 scheduler = AsyncIOScheduler(timezone=TIMEZONE)
+# Scheduled messages жаңарту
+GROUP_MESSAGES = {
+    'morning': [
+        "🌅 Қайырлы таң, достар!\nБүгін де жаңа білім күтіп тұр! Қане, белсенді болайық! 💪",
+        "🌅 Таң нұрлы, көңіл-күй көтеріңкі!\nБүгін тағы да қызықты тапсырмалар күтіп тұр! 🌟",
+        "🌅 Жаңа күн - жаңа мүмкіндіктер!\nБілімге құштар болайық! 📚"
+    ],
+    'english': [
+        "🇬🇧 Ағылшын тілі уақыты!\nҚәне, достар, жаңа сөздер үйренейік! 🎯",
+        "🇬🇧 English Time!\nБүгінгі жаңа сөздерді үйренуге дайынсыздар ма? 📝",
+        "🇬🇧 Let's learn English!\nЖаңа сөздер мен сөз тіркестерін үйренетін уақыт келді! 🎓"
+    ],
+    'activity': [
+        "🎯 Белсенділік уақыты!\nТопта кім бар? Қандай жаңалықтар бар? 😊",
+        "💫 Достар, қалайсыздар?\nБүгін қандай жетістіктерге жеттіңіздер? 🌟",
+        "🎉 Топ белсенділігін арттыратын уақыт!\nБір-бірімізге қолдау көрсетейік! 💪"
+    ]
+}
+
+async def send_group_english_activity(chat_id: int):
+    """Send interactive English activity to group"""
+    try:
+        # Жаңа сұрақ жіберу
+        intro_message = random.choice(GROUP_MESSAGES['english'])
+        await bot.send_message(chat_id, intro_message)
+        await asyncio.sleep(2)  # Кішкене үзіліс
+        await send_english_question(chat_id)
+    except Exception as e:
+        logger.error(f"Error sending group English activity: {e}")
+
+async def send_group_activity_prompt(chat_id: int):
+    """Send activity prompt to group"""
+    try:
+        message = random.choice(GROUP_MESSAGES['activity'])
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")],
+            [InlineKeyboardButton(text="💭 Пікір қалдыру", callback_data="leave_feedback")]
+        ])
+        await bot.send_message(chat_id, message, reply_markup=keyboard)
+    except Exception as e:
+        logger.error(f"Error sending group activity prompt: {e}")
+
+async def schedule_group_activities(chat_id: int):
+    """Schedule group-specific activities"""
+    try:
+        # Таңғы сәлемдесу
+        scheduler.add_job(
+            send_scheduled_message,
+            'cron',
+            hour=8,
+            minute=0,
+            args=[chat_id, random.choice(GROUP_MESSAGES['morning'])],
+            id=f'group_morning_{chat_id}',
+            replace_existing=True
+        )
+
+        # Ағылшын тілі белсенділіктері (күніне 3 рет)
+        for hour in [10, 15, 19]:
+            scheduler.add_job(
+                send_group_english_activity,
+                'cron',
+                hour=hour,
+                minute=0,
+                args=[chat_id],
+                id=f'group_english_{hour}_{chat_id}',
+                replace_existing=True
+            )
+
+        # Топ белсенділігін арттыру (күніне 2 рет)
+        for hour in [13, 17]:
+            scheduler.add_job(
+                send_group_activity_prompt,
+                'cron',
+                hour=hour,
+                minute=30,
+                args=[chat_id],
+                id=f'group_activity_{hour}_{chat_id}',
+                replace_existing=True
+            )
+
+        logger.info(f"Group activities scheduled for chat {chat_id}")
+    except Exception as e:
+        logger.error(f"Error scheduling group activities: {e}")
 
 def get_english_menu() -> InlineKeyboardMarkup:
     """Create main menu keyboard"""
@@ -395,22 +478,42 @@ async def schedule_reminders(chat_id: int):
     except Exception as e:
         logger.error(f"Error scheduling reminders for {chat_id}: {e}")
 
+# Жаңа callback handler қосу
+@dp.callback_query(lambda c: c.data == "leave_feedback")
+async def handle_feedback(callback_query: CallbackQuery):
+    """Handle feedback button press"""
+    try:
+        await callback_query.answer()
+        await callback_query.message.reply(
+            "💭 Топты жақсарту үшін пікіріңізді қалдырыңыз!\n"
+            "Қандай тақырыптар қызықтырады? Қандай жаттығулар қосқымыз келеді?"
+        )
+    except Exception as e:
+        logger.error(f"Error handling feedback: {e}")
+
+# start_command функциясын жаңарту
 @dp.message(CommandStart())
 async def start_command(message: Message):
     """Handle /start command"""
     try:
         chat_id = message.chat.id
         
-        # Check if message is from a group
         if message.chat.type in ['group', 'supergroup']:
             group_ids.add(chat_id)
             await message.reply(
-                "Ассалаумағалейкум! 👋\n"
-                "Мен сіздің топтың көмекшісімін. "
-                "Күнделікті ескертулер мен ағылшын тілі сабақтарын жіберіп тұрамын!"
+                "Ассалаумағалейкум, топ мүшелері! 👋\n\n"
+                "Мен сіздердің көмекшілеріңізбін!\n"
+                "🎯 Менің мүмкіндіктерім:\n"
+                "- Күнделікті ағылшын тілі сабақтары\n"
+                "- Топ белсенділігін арттыру\n"
+                "- Қызықты тапсырмалар\n"
+                "- Пайдалы ескертулер\n\n"
+                "Топта белсенді болыңыздар! 🌟"
             )
+            # Топ үшін арнайы жоспарлау
+            await schedule_group_activities(chat_id)
         else:
-            # Individual chat
+            # Жеке чат үшін бұрынғы код
             active_users.add(chat_id)
             await message.reply(
                 "Ассалаумағалейкум! 👋\n"
@@ -419,14 +522,12 @@ async def start_command(message: Message):
                 "Төмендегі батырмаларды басып, ағылшын тілін үйрене аласыз!",
                 reply_markup=get_english_menu()
             )
-        
-        # Schedule reminders for both individual users and groups
-        await schedule_reminders(chat_id)
+            await schedule_reminders(chat_id)
+            
         logger.info(f"Bot started in chat: {chat_id}")
     except Exception as e:
         logger.error(f"Error in start_command: {e}")
         await message.reply("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
-
 @dp.message()
 async def handle_messages(message: Message):
     """Handle all incoming messages"""
