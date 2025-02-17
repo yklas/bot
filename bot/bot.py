@@ -571,5 +571,13 @@ async def main():
         await bot.session.close()
         scheduler.shutdown()
 
+async def main():
+    scheduler.start()
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
 if __name__ == "__main__":
     asyncio.run(main())
