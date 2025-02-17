@@ -59,6 +59,7 @@ BASIC_RESPONSES = {
 # User chat IDs storage
 active_users = set()
 
+await bot.delete_webhook(drop_pending_updates=True)
 
 @dp.message(CommandStart())
 async def main():
