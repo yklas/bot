@@ -574,7 +574,6 @@ async def handle_messages(message: Message):
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
     async def send_scheduled_message(chat_id: int, message: str):
-    """Send scheduled message to user or group"""
     try:
         # Получаем соответствующую клавиатуру в зависимости от типа чата
         if chat_id in group_ids:
