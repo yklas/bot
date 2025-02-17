@@ -567,7 +567,6 @@ async def handle_messages(message: Message):
         logger.error(f"Error in handle_messages: {e}")
         await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
         def get_group_keyboard() -> InlineKeyboardMarkup:
-    """Create simplified keyboard for group chats"""
     keyboard = [
         [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")],
         [InlineKeyboardButton(text="💭 Пікір қалдыру", callback_data="leave_feedback")]
