@@ -39,7 +39,7 @@ ENGLISH_QUESTIONS = [
     },
     {
         "id": "3",
-        "image_url": "https://www.oates.com.au/medias/VC-Prod-Sell-Slot-null",
+        "image_url": "https://www.oates.com.au/medias/VC-Prod-Sell-Slot-null?context=bWFzdGVyfHJvb3R8MTg3MjI4fGltYWdlL3BuZ3xhREpoTDJneU1TODVOVE0xTkRJM05ERXhPVGs0TDFaRFgxQnliMlJmVTJWc2JGOVRiRzkwWDI1MWJHd3w3ZmVkZTc0Y2QzMWU4ZjAxMmFiM2NlM2M4NDYxYjY0NzQyNTAyYTM0YjdkNDNiZmFlMjU3N2RiYmU3NWVkYjIw",
         "question": "Үйдегі еденді тазалау үшін қолданатын бұл зат қалай аталады?",
         "options": ["Mop", "Broom", "Rug", "Bucket"],
         "correct": "Broom",
