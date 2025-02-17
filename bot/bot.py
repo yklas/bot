@@ -99,11 +99,9 @@ AFTERNOON_MESSAGE = "🇬🇧 Қалай, бауырым, ағылшын тіл�
 EVENING_MESSAGE = "📝 Күн қорытындысы! Бүгінгі тапсырмаларды орындап бітірдің бе? Share your progress! 🎯"
 SALAUAT_MESSAGE = "Бүгінгі салауатты ұмытпайық! Аллахумма солли 'аля саййидина Мухаммадин уа 'аля али саййидина Мухаммад"
 
-async def send_english_question(chat_id: int) -> None:
-    """Send a random English question async def send_english_question(chat_id: int, user_id: int) -> None:
-    """Send a random English question to user in group or private chat"""
+async def send_english_question(chat_id: int, user_id: int) -> None:
+    """Send a random English question to a specified chat and save progress for the given user"""
     try:
-        # Пайдаланушының нәтижесі жеке идентификатор бойынша сақталады
         if user_id not in user_progress:
             user_progress[user_id] = {
                 "correct_answers": 0,
@@ -114,17 +112,14 @@ async def send_english_question(chat_id: int) -> None:
         question = random.choice(ENGLISH_QUESTIONS)
         logger.info(f"Selected question: {question['id']} for user {user_id}")
         
-        # Опцияларды қамтитын инлайн батырмалар
         options_keyboard = []
         for option in question["options"]:
             callback_data = f"answer_{question['id']}_{option}"
             options_keyboard.append([InlineKeyboardButton(text=option, callback_data=callback_data)])
         
-        # «Басты мәзір» батырмасы
         options_keyboard.append([InlineKeyboardButton(text="🔙 Басты мәзір", callback_data="main_menu")])
         markup = InlineKeyboardMarkup(inline_keyboard=options_keyboard)
         
-        # Пайдаланушының ағымдағы сұрағын сақтау
         user_progress[user_id]["current_question"] = question
         
         try:
@@ -142,14 +137,12 @@ async def send_english_question(chat_id: int) -> None:
                 text=f"❓ {question['question']}",
                 reply_markup=markup
             )
-            
     except Exception as e:
         logger.error(f"Error in send_english_question: {e}")
         await bot.send_message(
             chat_id=chat_id,
             text="Қателік орын алды. Қайтадан көріңіз. /start"
         )
-
 def get_english_menu() -> InlineKeyboardMarkup:
     """Create English learning menu"""
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -162,8 +155,8 @@ def get_english_menu() -> InlineKeyboardMarkup:
 async def process_learn_english(callback_query: CallbackQuery):
     try:
         await callback_query.answer()
-        chat_id = callback_query.message.chat.id  # топ чат идентификаторы
-        user_id = callback_query.from_user.id       # жеке пайдаланушы идентификаторы
+        chat_id = callback_query.message.chat.id    # топтық чат идентификаторы
+        user_id = callback_query.from_user.id         # жеке пайдаланушы идентификаторы
         await send_english_question(chat_id, user_id)
     except Exception as e:
         logger.error(f"Error in process_learn_english: {e}")
