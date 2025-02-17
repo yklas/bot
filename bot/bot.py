@@ -24,32 +24,28 @@ dp = Dispatcher()
 # English learning content
 ENGLISH_QUESTIONS = [
     {
-        "image_url": "/api/placeholder/400/300",
-        "question": "What season is shown in this picture?",
-        "options": ["Spring", "Summer", "Autumn", "Winter"],
-        "correct": "Spring",
-        "translation": "Суретте қай мезгіл көрсетілген?"
+        "image_url": "https://m.media-amazon.com/images/I/514nTHwlFnL.jpg",
+        "question": "Тамақ ішкен кезде қолданатын бұл зат қалай аталады?",
+        "options": ["Spoon", "Fork", "Knife", "Plate"],
+        "correct": "Spoon",
     },
     {
-        "image_url": "/api/placeholder/400/300",
-        "question": "What weather is it in the image?",
-        "options": ["Sunny", "Rainy", "Cloudy", "Snowy"],
-        "correct": "Sunny",
-        "translation": "Суретте қандай ауа райы?"
+        "image_url": "https://www.kitchenstuffplus.com/media/catalog/product/7/3/7398_hauz-stovetop-kettle_230914133830626_ldk9f98hlpmd9nxf.jpg",
+        "question": "Ас үйде су қайнату үшін қолданатын құрылғы қалай аталады?",
+        "options": ["Kettle", "Toaster", "Blender", "Bucket"],
+        "correct": "Kettle",
     },
     {
-        "image_url": "/api/placeholder/400/300",
-        "question": "What type of landscape is this?",
-        "options": ["Mountain", "Beach", "Forest", "Desert"],
-        "correct": "Mountain",
-        "translation": "Бұл қандай ландшафт түрі?"
+        "image_url": "https://www.oates.com.au/medias/VC-Prod-Sell-Slot-null?context=bWFzdGVyfHJvb3R8MTg3MjI4fGltYWdlL3BuZ3xhREpoTDJneU1TODVOVE0xTkRJM05ERXhPVGs0TDFaRFgxQnliMlJmVTJWc2JGOVRiRzkwWDI1MWJHd3w3ZmVkZTc0Y2QzMWU4ZjAxMmFiM2NlM2M4NDYxYjY0NzQyNTAyYTM0YjdkNDNiZmFlMjU3N2RiYmU3NWVkYjIw",
+        "question": "Үйдегі еденді тазалау үшін қолданатын бұл зат қалайаталады?",
+        "options": ["Mop", "Broom", "Rug", "Bucket"],
+        "correct": "Broom",
     },
     {
-        "image_url": "/api/placeholder/400/300",
-        "question": "What time of day is shown?",
-        "options": ["Morning", "Noon", "Evening", "Night"],
-        "correct": "Morning",
-        "translation": "Тәуліктің қай мезгілі көрсетілген?"
+        "image_url": "https://www.thefurnituremarket.co.uk/media/catalog/product/cache/e87de9c08ea8cd93ad1e6aad80c8118c/r/c/rc15-cotswold-rustic-oak-double-wardrobe-1.jpg",
+        "question": "Киімдерді жинап, сақтау үшін қолданатын бұл зат қалай аталады?",
+        "options": ["Sofa", "Mirror", "Wardrobe", "Table"],
+        "correct": "Wardrobe",
     }
 ]
 
@@ -290,7 +286,7 @@ async def schedule_reminders(chat_id: int):
         )
         
         # Schedule daily English questions
-        for hour in [9, 13, 17, 21]:  # 4 times per day
+        for hour in [9, 13, 16, 21]:  # 4 times per day
             scheduler.add_job(
                 send_english_question,
                 'cron',
