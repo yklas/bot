@@ -59,9 +59,8 @@ BASIC_RESPONSES = {
 # User chat IDs storage
 active_users = set()
 
-await bot.delete_webhook(drop_pending_updates=True)
-
 @dp.message(CommandStart())
+await bot.delete_webhook(drop_pending_updates=True)
 async def main():
     # Вебхукті өшіру: күтуге қалдырылған хабарламаларды да өшіріп тастайды
     await bot.delete_webhook(drop_pending_updates=True)
