@@ -99,6 +99,7 @@ SALAUAT_MESSAGE = "Бүгінгі салауатты ұмытпайық! Алл�
 
 # Initialize scheduler
 scheduler = AsyncIOScheduler(timezone=TIMEZONE)
+GROUP_CHAT_ID = "-2385835678" 
 # Scheduled messages жаңарту
 GROUP_MESSAGES = {
     'morning': [
