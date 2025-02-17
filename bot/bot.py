@@ -155,12 +155,12 @@ def get_english_menu() -> InlineKeyboardMarkup:
 async def process_learn_english(callback_query: CallbackQuery):
     try:
         await callback_query.answer()
-        chat_id = callback_query.message.chat.id    # топтық чат идентификаторы
-        user_id = callback_query.from_user.id         # жеке пайдаланушы идентификаторы
-        await send_english_question(chat_id, user_id)
+        chat_id = callback_query.message.chat.id  # Топтың чат ID-ін аламыз
+        await bot.send_message(chat_id, "Ағылшын үйренуді бастайық! 📝\nСұрақ: What is the capital of France?")
     except Exception as e:
         logger.error(f"Error in process_learn_english: {e}")
         await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
+
 
 @dp.callback_query(lambda c: c.data.startswith("answer_"))
 async def process_answer(callback_query: CallbackQuery):
