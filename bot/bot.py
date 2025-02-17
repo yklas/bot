@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
+# Store active users and group chats
+active_users = set()
+group_ids = set()
+
 # English learning content
 ENGLISH_QUESTIONS = [
     {
@@ -55,12 +59,6 @@ ENGLISH_QUESTIONS = [
 
 # User progress tracking
 user_progress: Dict[int, Dict] = {}
-
-# Store active users
-active_users = set()
-
-# Initialize scheduler
-scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 
 # Basic responses dictionary
 BASIC_RESPONSES = {
@@ -99,14 +97,19 @@ AFTERNOON_MESSAGE = "🇬🇧 Қалай, бауырым, ағылшын тіл�
 EVENING_MESSAGE = "📝 Күн қорытындысы! Бүгінгі тапсырмаларды орындап бітірдің бе? Share your progress! 🎯"
 SALAUAT_MESSAGE = "Бүгінгі салауатты ұмытпайық! Аллахумма солли 'аля саййидина Мухаммадин уа 'аля али саййидина Мухаммад"
 
-import random
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+# Initialize scheduler
+scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 
-# Update the user progress tracking structure
-user_progress: Dict[int, Dict] = {}
+def get_english_menu() -> InlineKeyboardMarkup:
+    """Create main menu keyboard"""
+    keyboard = [
+        [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")],
+        [InlineKeyboardButton(text="📊 Менің жетістіктерім", callback_data="my_progress")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 async def send_english_question(chat_id: int) -> None:
-    """Топқа ағылшын тілін үйренуге арналған сұрақты жібереді."""
+    """Send English learning question to chat"""
     try:
         # Get previously asked questions for this chat
         asked_questions = user_progress.get(chat_id, {}).get("asked_questions", [])
@@ -119,7 +122,7 @@ async def send_english_question(chat_id: int) -> None:
             asked_questions = []
             available_questions = ENGLISH_QUESTIONS
         
-        # Select a random question from available questions
+        # Select a random question
         question = random.choice(available_questions)
         
         # Initialize or update user progress
@@ -141,7 +144,6 @@ async def send_english_question(chat_id: int) -> None:
             callback_data = f"answer_{question['id']}_{option}"
             options_keyboard.append([InlineKeyboardButton(text=option, callback_data=callback_data)])
         
-        options_keyboard.append([InlineKeyboardButton(text="🔙 Басты мәзір", callback_data="main_menu")])
         markup = InlineKeyboardMarkup(inline_keyboard=options_keyboard)
         
         try:
@@ -166,55 +168,66 @@ async def send_english_question(chat_id: int) -> None:
             text="Қателік орын алды. Қайтадан көріңіз. /start"
         )
 
+@dp.callback_query(lambda c: c.data == "learn_english")
+async def start_learning(callback_query: CallbackQuery):
+    """Handle learn English button"""
+    try:
+        chat_id = callback_query.message.chat.id
+        await callback_query.answer()
+        await send_english_question(chat_id)
+    except Exception as e:
+        logger.error(f"Error in start_learning: {e}")
+        await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
+
 @dp.callback_query(lambda c: c.data.startswith("answer_"))
 async def process_answer(callback_query: CallbackQuery):
     """Handle answer selection"""
     try:
-        user_id = callback_query.message.chat.id  # Changed from from_user.id to message.chat.id
+        chat_id = callback_query.message.chat.id
         _, question_id, selected_answer = callback_query.data.split("_")
         
-        # Make sure user progress exists
-        if user_id not in user_progress:
-            user_progress[user_id] = {
+        # Initialize progress if not exists
+        if chat_id not in user_progress:
+            user_progress[chat_id] = {
                 "asked_questions": [],
                 "current_question": None,
                 "correct_answers": 0,
                 "questions_answered": 0
             }
         
-        current_question = user_progress[user_id].get("current_question")
+        current_question = user_progress[chat_id].get("current_question")
         
         if current_question and current_question["id"] == question_id:
+            # Remove the old keyboard
+            await callback_query.message.edit_reply_markup(reply_markup=None)
+            
             if selected_answer == current_question["correct"]:
-                user_progress[user_id]["correct_answers"] += 1
-                await callback_query.answer("🎉 Дұрыс! / Correct!")
+                user_progress[chat_id]["correct_answers"] += 1
+                await callback_query.message.reply("🎉 Дұрыс! / Correct!")
             else:
-                await callback_query.answer(
+                await callback_query.message.reply(
                     f"❌ Қате! Дұрыс жауап: {current_question['correct']}"
                 )
             
-            user_progress[user_id]["questions_answered"] += 1
+            user_progress[chat_id]["questions_answered"] += 1
             
-            # Send result message
+            # Send result message with next question button
             result_text = (
-                f"✅ Дұрыс жауаптар: {user_progress[user_id]['correct_answers']}\n"
-                f"📝 Барлық жауаптар: {user_progress[user_id]['questions_answered']}"
+                f"✅ Дұрыс жауаптар: {user_progress[chat_id]['correct_answers']}\n"
+                f"📝 Барлық жауаптар: {user_progress[chat_id]['questions_answered']}"
             )
             
-            # Create keyboard for next question
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="📚 Келесі сұрақ", callback_data="next_question")],
                 [InlineKeyboardButton(text="🔙 Басты мәзір", callback_data="main_menu")]
             ])
             
-            await callback_query.message.edit_reply_markup(reply_markup=None)  # Remove old keyboard
-            await callback_query.message.answer(result_text, reply_markup=keyboard)
+            await callback_query.message.reply(result_text, reply_markup=keyboard)
         
     except Exception as e:
         logger.error(f"Error in process_answer: {e}")
-        await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
+        await callback_query.message.reply("Қателік орын алды. Қайтадан көріңіз.")
 
-# Add new handler for next question button
 @dp.callback_query(lambda c: c.data == "next_question")
 async def next_question(callback_query: CallbackQuery):
     """Handle next question button"""
@@ -224,46 +237,6 @@ async def next_question(callback_query: CallbackQuery):
         await send_english_question(chat_id)
     except Exception as e:
         logger.error(f"Error in next_question: {e}")
-        await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
-
-
-@dp.callback_query(lambda c: c.data.startswith("answer_"))
-async def process_answer(callback_query: CallbackQuery):
-    """Handle answer selection"""
-    try:
-        user_id = callback_query.from_user.id
-        _, question_id, selected_answer = callback_query.data.split("_")
-        
-        if user_id in user_progress and user_progress[user_id]["current_question"]:
-            current_question = user_progress[user_id]["current_question"]
-            
-            if current_question["id"] == question_id:
-                if selected_answer == current_question["correct"]:
-                    user_progress[user_id]["correct_answers"] += 1
-                    await callback_query.answer("🎉 Дұрыс! / Correct!")
-                else:
-                    await callback_query.answer(
-                        f"❌ Қате! Дұрыс жауап: {current_question['correct']}"
-                    )
-                
-                user_progress[user_id]["questions_answered"] += 1
-                
-                # Send result message
-                result_text = (
-                    f"✅ Дұрыс жауаптар: {user_progress[user_id]['correct_answers']}\n"
-                    f"📝 Барлық жауаптар: {user_progress[user_id]['questions_answered']}"
-                )
-                
-                # Create keyboard for next question
-                keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="📚 Келесі сұрақ", callback_data="learn_english")],
-                    [InlineKeyboardButton(text="🔙 Басты мәзір", callback_data="main_menu")]
-                ])
-                
-                await callback_query.message.answer(result_text, reply_markup=keyboard)
-                
-    except Exception as e:
-        logger.error(f"Error in process_answer: {e}")
         await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
 
 @dp.callback_query(lambda c: c.data == "main_menu")
@@ -282,11 +255,11 @@ async def show_main_menu(callback_query: CallbackQuery):
 async def show_progress(callback_query: CallbackQuery):
     """Show user's learning progress"""
     try:
-        user_id = callback_query.from_user.id
+        chat_id = callback_query.message.chat.id
         
-        if user_id in user_progress:
-            correct = user_progress[user_id].get("correct_answers", 0)
-            total = user_progress[user_id].get("questions_answered", 0)
+        if chat_id in user_progress:
+            correct = user_progress[chat_id].get("correct_answers", 0)
+            total = user_progress[chat_id].get("questions_answered", 0)
             percentage = (correct / total * 100) if total > 0 else 0
             
             progress_text = (
@@ -311,13 +284,18 @@ async def show_progress(callback_query: CallbackQuery):
         await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
 
 async def send_scheduled_message(chat_id: int, message: str):
-    """Send scheduled message to user"""
+    """Send scheduled message to user or group"""
     try:
-        await bot.send_message(chat_id, message, reply_markup=get_english_menu())
+        # Get appropriate keyboard based on chat type
+        keyboard = get_english_menu() if chat_id not in group_ids else None
+        await bot.send_message(chat_id, message, reply_markup=keyboard)
         logger.info(f"Scheduled message sent to {chat_id}")
     except Exception as e:
         logger.error(f"Error sending scheduled message to {chat_id}: {e}")
-        active_users.discard(chat_id)
+        if chat_id in active_users:
+            active_users.discard(chat_id)
+        if chat_id in group_ids:
+            group_ids.discard(chat_id)
 
 async def morning_reminder(chat_id: int):
     """Send morning reminder"""
@@ -325,8 +303,10 @@ async def morning_reminder(chat_id: int):
     await send_scheduled_message(chat_id, message)
 
 async def schedule_reminders(chat_id: int):
-    """Schedule all reminders for a user"""
+    """Schedule all reminders for a user or group"""
     try:
+        is_group = chat_id in group_ids
+        
         # Schedule daily reminders
         scheduler.add_job(
             morning_reminder,
@@ -359,6 +339,7 @@ async def schedule_reminders(chat_id: int):
             id=f'afternoon_{chat_id}',
             replace_existing=True
         )
+        
         # Schedule evening message
         scheduler.add_job(
             send_scheduled_message,
@@ -381,22 +362,36 @@ async def schedule_reminders(chat_id: int):
             replace_existing=True
         )
         
-        # Schedule daily English questions
-        for hour in [9, 13, 16, 21]:  # 4 times per day
-            scheduler.add_job(
-                send_english_question,
-                'cron',
-                hour=hour,
-                minute=0,
-                args=[chat_id],
-                id=f'english_{hour}_{chat_id}',
-                replace_existing=True
-            )
+        # Schedule English questions based on chat type
+        if is_group:
+            # Less frequent for groups
+            for hour in [10, 16]:  # Only 2 times per day
+                scheduler.add_job(
+                    send_english_question,
+                    'cron',
+                    hour=hour,
+                    minute=0,
+                    args=[chat_id],
+                    id=f'english_{hour}_{chat_id}',
+                    replace_existing=True
+                )
+        else:
+            # More frequent for individual users
+            for hour in [9, 13, 16, 21]:  # 4 times per day
+                scheduler.add_job(
+                    send_english_question,
+                    'cron',
+                    hour=hour,
+                    minute=0,
+                    args=[chat_id],
+                    id=f'english_{hour}_{chat_id}',
+                    replace_existing=True
+                )
         
         if not scheduler.running:
             scheduler.start()
         
-        logger.info(f"Reminders scheduled for user {chat_id}")
+        logger.info(f"Reminders scheduled for chat {chat_id}")
     except Exception as e:
         logger.error(f"Error scheduling reminders for {chat_id}: {e}")
 
@@ -404,35 +399,50 @@ async def schedule_reminders(chat_id: int):
 async def start_command(message: Message):
     """Handle /start command"""
     try:
-        user_id = message.from_user.id
-        active_users.add(user_id)
+        chat_id = message.chat.id
         
-        await message.answer(
-            "Ассалаумағалейкум! 👋\n"
-            "Мен сіздің көмекшіңізбін. Сұрақтарыңызға жауап беріп, "
-            "күнделікті ескертулер жасаймын!\n\n"
-            "Төмендегі батырмаларды басып, ағылшын тілін үйрене аласыз!",
-            reply_markup=get_english_menu()
-        )
+        # Check if message is from a group
+        if message.chat.type in ['group', 'supergroup']:
+            group_ids.add(chat_id)
+            await message.reply(
+                "Ассалаумағалейкум! 👋\n"
+                "Мен сіздің топтың көмекшісімін. "
+                "Күнделікті ескертулер мен ағылшын тілі сабақтарын жіберіп тұрамын!"
+            )
+        else:
+            # Individual chat
+            active_users.add(chat_id)
+            await message.reply(
+                "Ассалаумағалейкум! 👋\n"
+                "Мен сіздің көмекшіңізбін. Сұрақтарыңызға жауап беріп, "
+                "күнделікті ескертулер жасаймын!\n\n"
+                "Төмендегі батырмаларды басып, ағылшын тілін үйрене аласыз!",
+                reply_markup=get_english_menu()
+            )
         
-        await schedule_reminders(user_id)
-        logger.info(f"New user started the bot: {user_id}")
+        # Schedule reminders for both individual users and groups
+        await schedule_reminders(chat_id)
+        logger.info(f"Bot started in chat: {chat_id}")
     except Exception as e:
         logger.error(f"Error in start_command: {e}")
-        await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
+        await message.reply("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
 
 @dp.message()
 async def handle_messages(message: Message):
     """Handle all incoming messages"""
     try:
-        text = message.text.lower()
+        text = message.text.lower() if message.text else ""
         if text in BASIC_RESPONSES:
-            await message.answer(BASIC_RESPONSES[text], reply_markup=get_english_menu())
+            # Only add keyboard for individual chats
+            keyboard = get_english_menu() if message.chat.type == 'private' else None
+            await message.answer(BASIC_RESPONSES[text], reply_markup=keyboard)
         else:
-            await message.answer(
-                "Кешіріңіз, мен сізді түсінбедім. Басқаша түсіндіріп көріңізші 😊",
-                reply_markup=get_english_menu()
-            )
+            # Only respond to unrecognized messages in private chats
+            if message.chat.type == 'private':
+                await message.answer(
+                    "Кешіріңіз, мен сізді түсінбедім. Басқаша түсіндіріп көріңізші 😊",
+                    reply_markup=get_english_menu()
+                )
     except Exception as e:
         logger.error(f"Error in handle_messages: {e}")
         await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
