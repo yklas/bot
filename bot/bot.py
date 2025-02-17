@@ -94,12 +94,13 @@ MORNING_MESSAGES = [
 
 NOON_MESSAGE = "📚 Кітап оқу уақыты келді! Білім - таусылмас қазына! 📖"
 AFTERNOON_MESSAGE = "🇬🇧 Қалай, бауырым, ағылшын тіліндегі жаңа сөздерді жаттадың ба? Remember - practice makes perfect! 😊"
-EVENING_MESSAGE = "📝 Күн қорытындысы! Бүгінгі тапсырмаларды орындап бітірдің бе? Share your progress! 🎯"
+EVENING_MESSAGE = "📝 Күн қорытындысы! Бүгінгі күнің біліммен өттіма, әлде пайдасыз іспен өттіма? Share your progress! 🎯"
 SALAUAT_MESSAGE = "Бүгінгі салауатты ұмытпайық! Аллахумма солли 'аля саййидина Мухаммадин уа 'аля али саййидина Мухаммад"
 
 # Initialize scheduler
 scheduler = AsyncIOScheduler(timezone=TIMEZONE)
 GROUP_CHAT_ID = "-2385835678" 
+
 # Scheduled messages жаңарту
 GROUP_MESSAGES = {
     'morning': [
@@ -116,6 +117,11 @@ GROUP_MESSAGES = {
         "🎯 Белсенділік уақыты!\nТопта кім бар? Қандай жаңалықтар бар? 😊",
         "💫 Достар, қалайсыздар?\nБүгін қандай жетістіктерге жеттіңіздер? 🌟",
         "🎉 Топ белсенділігін арттыратын уақыт!\nБір-бірімізге қолдау көрсетейік! 💪"
+    ],
+    'book': [
+        "📚 Кітап оқып жатсыңдар ма? Бүгін қандай кітап оқып жатырсыздар? 📖",
+        "📚 Кітап - білім бұлағы! Күнде 20 минут оқу арқылы көп білім алуға болады! 📚",
+        "📚 Достар, бүгін қандай пайдалы кітап оқып жатырсыздар? Бөлісіңіздер! 📖"
     ]
 }
 
@@ -142,24 +148,77 @@ async def send_group_activity_prompt(chat_id: int):
     except Exception as e:
         logger.error(f"Error sending group activity prompt: {e}")
 
-# Сағат пен минутты көрсетіп жоспарлау
+async def send_book_reminder(chat_id: int):
+    """Send book reading reminder"""
+    try:
+        message = random.choice(GROUP_MESSAGES['book'])
+        await bot.send_message(chat_id, message)
+    except Exception as e:
+        logger.error(f"Error sending book reminder: {e}")
+
+# Сағат пен минутты жаңартылған уақыттарға сәйкес реттеу
 english_schedule = [
-    {'hour': 10, 'minute': 10},  # 10:30
-    {'hour': 13, 'minute': 00},  # 15:45
-    {'hour': 22, 'minute': 00}   # 20:30
+    {'hour': 9, 'minute': 0},
+    {'hour': 13, 'minute': 0},
+    {'hour': 17, 'minute': 0},
+    {'hour': 21, 'minute': 0}
 ]
 
 async def schedule_group_activities(chat_id: int):
     """Schedule group-specific activities"""
     try:
-        # Таңғы сәлемдесу
+        # Таңғы сәлемдесу - 7:00
         scheduler.add_job(
             send_scheduled_message,
             'cron',
-            hour=8,
+            hour=7,
             minute=0,
             args=[chat_id, random.choice(GROUP_MESSAGES['morning'])],
             id=f'group_morning_{chat_id}',
+            replace_existing=True
+        )
+
+        # Кітап оқу ескертуі - 10:00
+        scheduler.add_job(
+            send_book_reminder,
+            'cron',
+            hour=10,
+            minute=0,
+            args=[chat_id],
+            id=f'group_book_{chat_id}',
+            replace_existing=True
+        )
+
+        # Ағылшын тілі белсенділіктері - 16:00
+        scheduler.add_job(
+            send_scheduled_message,
+            'cron',
+            hour=16, 
+            minute=0,
+            args=[chat_id, AFTERNOON_MESSAGE],
+            id=f'group_afternoon_{chat_id}',
+            replace_existing=True
+        )
+
+        # Күн қорытындысы - 20:00
+        scheduler.add_job(
+            send_scheduled_message,
+            'cron',
+            hour=20,
+            minute=0,
+            args=[chat_id, EVENING_MESSAGE],
+            id=f'group_evening_{chat_id}',
+            replace_existing=True
+        )
+
+        # Салауат ескертуі - 22:00
+        scheduler.add_job(
+            send_scheduled_message,
+            'cron',
+            hour=22,
+            minute=0,
+            args=[chat_id, SALAUAT_MESSAGE],
+            id=f'group_salauat_{chat_id}',
             replace_existing=True
         )
 
@@ -172,18 +231,6 @@ async def schedule_group_activities(chat_id: int):
                 minute=schedule['minute'],
                 args=[chat_id],
                 id=f'group_english_{schedule["hour"]}_{schedule["minute"]}_{chat_id}',
-                replace_existing=True
-            )
-
-        # Топ белсенділігін арттыру
-        for hour in [13, 17]:
-            scheduler.add_job(
-                send_group_activity_prompt,
-                'cron',
-                hour=hour,
-                minute=30,
-                args=[chat_id],
-                id=f'group_activity_{hour}_{chat_id}',
                 replace_existing=True
             )
 
@@ -409,18 +456,18 @@ async def schedule_reminders(chat_id: int):
             replace_existing=True
         )
         
-        # Schedule noon message
+        # Schedule noon message - 10:00
         scheduler.add_job(
             send_scheduled_message,
             'cron',
-            hour=12,
+            hour=10,
             minute=0,
             args=[chat_id, NOON_MESSAGE],
             id=f'noon_{chat_id}',
             replace_existing=True
         )
         
-        # Schedule afternoon message
+        # Schedule afternoon message - 16:00
         scheduler.add_job(
             send_scheduled_message,
             'cron',
@@ -431,7 +478,7 @@ async def schedule_reminders(chat_id: int):
             replace_existing=True
         )
         
-        # Schedule evening message
+        # Schedule evening message - 20:00
         scheduler.add_job(
             send_scheduled_message,
             'cron',
@@ -442,11 +489,11 @@ async def schedule_reminders(chat_id: int):
             replace_existing=True
         )
         
-        # Schedule salauat message
+        # Schedule salauat message - 22:00
         scheduler.add_job(
             send_scheduled_message,
             'cron',
-            hour=14,
+            hour=22,
             minute=0,
             args=[chat_id, SALAUAT_MESSAGE],
             id=f'salauat_{chat_id}',
@@ -455,27 +502,27 @@ async def schedule_reminders(chat_id: int):
         
         # Schedule English questions based on chat type
         if is_group:
-            # Less frequent for groups
-            for hour in [10, 16]:  # Only 2 times per day
+            # Ағылшын тілі сабақтары белгіленген уақыттарда
+            for schedule in english_schedule:
                 scheduler.add_job(
                     send_english_question,
                     'cron',
-                    hour=hour,
-                    minute=0,
+                    hour=schedule['hour'],
+                    minute=schedule['minute'],
                     args=[chat_id],
-                    id=f'english_{hour}_{chat_id}',
+                    id=f'english_{schedule["hour"]}_{schedule["minute"]}_{chat_id}',
                     replace_existing=True
                 )
         else:
-            # More frequent for individual users
-            for hour in [9, 13, 16, 21]:  # 4 times per day
+            # Жеке қолданушылар үшін ағылшын тілі сабақтары
+            for schedule in english_schedule:
                 scheduler.add_job(
                     send_english_question,
                     'cron',
-                    hour=hour,
-                    minute=0,
+                    hour=schedule['hour'],
+                    minute=schedule['minute'],
                     args=[chat_id],
-                    id=f'english_{hour}_{chat_id}',
+                    id=f'english_{schedule["hour"]}_{schedule["minute"]}_{chat_id}',
                     replace_existing=True
                 )
         
@@ -556,39 +603,97 @@ async def handle_messages(message: Message):
                     [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
                 ])
             await message.answer(BASIC_RESPONSES[text], reply_markup=keyboard)
-        else:
-            # Отвечаем только на нераспознанные сообщения в личных чатах
-            if message.chat.type == 'private':
-                await message.answer(
-                    "Кешіріңіз, мен сізді түсінбедім. Басқаша түсіндіріп көріңізші 😊",
-                    reply_markup=get_english_menu()
-                )
+            
+        # Add user to active users if it's a private chat
+        if message.chat.type == 'private':
+            active_users.add(message.chat.id)
+        # Add group to groups list if it's a group chat
+        elif message.chat.type in ['group', 'supergroup']:
+            group_ids.add(message.chat.id)
+            
     except Exception as e:
         logger.error(f"Error in handle_messages: {e}")
-        await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
 
-def get_group_keyboard() -> InlineKeyboardMarkup:
-    """Create simplified keyboard for group chats"""
-    keyboard = [
-        [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")],
-        [InlineKeyboardButton(text="💭 Пікір қалдыру", callback_data="leave_feedback")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-    
-async def main():
-    """Main function to run the bot"""
+async def main() -> None:
+    """Main function to start the bot"""
     try:
-        logger.info("Starting bot...")
-        # Delete webhook before polling
-        await bot.delete_webhook(drop_pending_updates=True)
-        # Start polling
+        # Start the scheduler
+        if not scheduler.running:
+            scheduler.start()
+            
+        # Set up commands
+        commands_list = [
+            types.BotCommand(command="start", description="Бастау / Start the bot"),
+            types.BotCommand(command="help", description="Көмек / Help information"),
+            types.BotCommand(command="schedule", description="Кесте / Show schedule"),
+        ]
+        await bot.set_my_commands(commands_list)
+        
+        # Start the bot
         await dp.start_polling(bot)
     except Exception as e:
-        logger.error(f"Error starting bot: {e}")
+        logger.error(f"Error in main function: {e}")
     finally:
-        # Proper cleanup
-        await bot.session.close()
+        # Stop the scheduler
         scheduler.shutdown()
+        await bot.session.close()
 
+@dp.message(Command('help'))
+async def help_command(message: Message):
+    """Handle /help command"""
+    help_text = (
+        "🤖 *Менің мүмкіндіктерім:*\n\n"
+        "🔹 /start - Ботты іске қосу\n"
+        "🔹 /help - Көмек алу\n"
+        "🔹 /schedule - Хабарламалар кестесін қарау\n\n"
+        "📚 Ағылшын тілін үйрену мүмкіндігін пайдалану үшін тиісті батырманы басыңыз.\n"
+        "🕘 Ескертулер күн бойы белгіленген уақытта жіберіледі.\n"
+        "❓ Мәтіндік сұрақтарға автоматты түрде жауап беремін.\n\n"
+        "📱 Тапсырмаларды орындап, біліміңізді жетілдіріңіз!"
+    )
+    try:
+        # Create appropriate keyboard based on chat type
+        if message.chat.type == 'private':
+            keyboard = get_english_menu()
+        else:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
+            ])
+            
+        await message.answer(help_text, reply_markup=keyboard, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"Error in help_command: {e}")
+        await message.answer("Қателік орын алды. Қайтадан көріңіз.")
+
+@dp.message(Command('schedule'))
+async def schedule_command(message: Message):
+    """Handle /schedule command"""
+    schedule_text = (
+        "📅 *Күнделікті хабарламалар кестесі:*\n\n"
+        "🌅 07:00 - Таңғы ескерту\n"
+        "📚 10:00 - Кітап оқу уақыты\n"
+        "🇬🇧 13:00 - Ағылшын тілі сабағы\n"
+        "🇬🇧 16:00 - Ағылшын тілі сабағы\n"
+        "🇬🇧 17:00 - Ағылшын тілі сабағы\n"
+        "📝 20:00 - Күн қорытындысы\n"
+        "🤲 22:00 - Салауат\n\n"
+        "🔄 Барлық ескертулер *автоматты түрде* жіберіледі."
+    )
+    try:
+        # Create appropriate keyboard based on chat type
+        if message.chat.type == 'private':
+            keyboard = get_english_menu()
+        else:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
+            ])
+            
+        await message.answer(schedule_text, reply_markup=keyboard, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"Error in schedule_command: {e}")
+        await message.answer("Қателік орын алды. Қайтадан көріңіз.")
+
+# Ensure the bot is run only if this script is executed directly
 if __name__ == "__main__":
     asyncio.run(main())
+            
