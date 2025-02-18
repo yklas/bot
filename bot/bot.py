@@ -704,8 +704,7 @@ async def handle_messages(message: Message):
         active_users.add(message.chat.id)
     elif message.chat.type in ['group', 'supergroup']:
         group_ids.add(message.chat.id)
-    except Exception as e:
-        logger.error(f"Error in handle_messages: {e}")
+  
 
 
 # Add proper cleanup on shutdown
