@@ -409,13 +409,17 @@ async def show_progress(callback_query: CallbackQuery):
         await callback_query.answer("Қателік орын алды. Қайтадан көріңіз.")
 
 # Басты функция
+import asyncio
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
 async def main():
-    """Ботты іске қосу"""
-    try:
-        logger.info("Бот іске қосылды!")
-        await dp.start_polling()
-    except Exception as e:
-        logger.error(f"Ботты іске қосуда қате: {e}")
+    scheduler = AsyncIOScheduler()
+    scheduler.start()
+
+    while True:
+        await asyncio.sleep(1)  # Цикл үздіксіз жұмыс істеуі үшін
+
+asyncio.run(main())  # Негізгі циклді дұрыс іске қосу
 
 if __name__ == "__main__":
     asyncio.run(main())
