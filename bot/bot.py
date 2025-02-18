@@ -280,7 +280,7 @@ async def schedule_group_activities(chat_id: int):
             send_scheduled_message,
             'cron',
             hour=22,
-            minute=0,
+            minute=33,
             args=[chat_id, SALAUAT_MESSAGE],
             id=f'group_salauat_{chat_id}',
             replace_existing=True
@@ -499,19 +499,31 @@ async def show_progress(callback_query: CallbackQuery):
         logger.error(f"Error in show_progress: {e}")
         await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
 
+# start_command функциясын жаңарту
 async def send_scheduled_message(chat_id: int, message: str):
-    """Send scheduled message to user or group"""
+    """Send scheduled message to user or group with appropriate keyboard"""
     try:
-        # Get appropriate keyboard based on chat type
-        keyboard = get_english_menu() if chat_id not in group_ids else None
+        # Determine chat type and set appropriate keyboard
+        is_group = chat_id in group_ids
+        keyboard = None
+        
+        if is_group:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
+            ])
+        else:
+            keyboard = get_english_menu()
+            
         await bot.send_message(chat_id, message, reply_markup=keyboard)
-        logger.info(f"Scheduled message sent to {chat_id}")
+        logger.info(f"Scheduled message sent to {'group' if is_group else 'private'} chat {chat_id}")
     except Exception as e:
         logger.error(f"Error sending scheduled message to {chat_id}: {e}")
+        # Remove from tracking if message fails
         if chat_id in active_users:
             active_users.discard(chat_id)
         if chat_id in group_ids:
             group_ids.discard(chat_id)
+
 
 async def morning_reminder(chat_id: int):
     """Send morning reminder"""
@@ -523,93 +535,93 @@ async def schedule_reminders(chat_id: int):
     try:
         is_group = chat_id in group_ids
         
-        # Schedule daily reminders
-        scheduler.add_job(
-            morning_reminder,
-            'cron',
-            hour=7,
-            minute=0,
-            args=[chat_id],
-            id=f'morning_{chat_id}',
-            replace_existing=True
-        )
-        
-        # Schedule noon message - 10:00
-        scheduler.add_job(
-            send_scheduled_message,
-            'cron',
-            hour=10,
-            minute=0,
-            args=[chat_id, NOON_MESSAGE],
-            id=f'noon_{chat_id}',
-            replace_existing=True
-        )
-        
-        # Schedule afternoon message - 16:00
-        scheduler.add_job(
-            send_scheduled_message,
-            'cron',
-            hour=18,
-            minute=30,
-            args=[chat_id, AFTERNOON_MESSAGE],
-            id=f'afternoon_{chat_id}',
-            replace_existing=True
-        )
-        
-        # Schedule evening message - 20:00
-        scheduler.add_job(
-            send_scheduled_message,
-            'cron',
-            hour=20,
-            minute=0,
-            args=[chat_id, EVENING_MESSAGE],
-            id=f'evening_{chat_id}',
-            replace_existing=True
-        )
-        
-        # Schedule salauat message - 22:00
-        scheduler.add_job(
-            send_scheduled_message,
-            'cron',
-            hour=22,
-            minute=0,
-            args=[chat_id, SALAUAT_MESSAGE],
-            id=f'salauat_{chat_id}',
-            replace_existing=True
-        )
-        
-        # Schedule English questions based on chat type
-        if is_group:
-            # Ағылшын тілі сабақтары белгіленген уақыттарда
-            for schedule in english_schedule:
+        # Common scheduling for both private and group chats
+        scheduler_jobs = [
+            # Morning reminder - 7:00
+            {
+                'func': send_scheduled_message,
+                'hour': 7,
+                'minute': 0,
+                'args': [chat_id, random.choice(MORNING_MESSAGES if not is_group else GROUP_MESSAGES['morning'])],
+                'id': f'morning_{chat_id}'
+            },
+            # Noon message - 10:00
+            {
+                'func': send_scheduled_message,
+                'hour': 10,
+                'minute': 0,
+                'args': [chat_id, NOON_MESSAGE if not is_group else random.choice(GROUP_MESSAGES['book'])],
+                'id': f'noon_{chat_id}'
+            },
+            # Afternoon message - 16:00
+            {
+                'func': send_scheduled_message,
+                'hour': 16,
+                'minute': 0,
+                'args': [chat_id, AFTERNOON_MESSAGE if not is_group else random.choice(GROUP_MESSAGES['english'])],
+                'id': f'afternoon_{chat_id}'
+            },
+            # Evening message - 20:00
+            {
+                'func': send_scheduled_message,
+                'hour': 20,
+                'minute': 0,
+                'args': [chat_id, EVENING_MESSAGE if not is_group else random.choice(GROUP_MESSAGES['activity'])],
+                'id': f'evening_{chat_id}'
+            },
+            # Salauat message - 22:00
+            {
+                'func': send_scheduled_message,
+                'hour': 22,
+                'minute': 33,
+                'args': [chat_id, SALAUAT_MESSAGE],
+                'id': f'salauat_{chat_id}'
+            }
+        ]
+
+        # Schedule all jobs
+        for job in scheduler_jobs:
+            scheduler.add_job(
+                job['func'],
+                'cron',
+                hour=job['hour'],
+                minute=job['minute'],
+                args=job['args'],
+                id=job['id'],
+                replace_existing=True
+            )
+
+        # Schedule English lessons at specific times
+        for schedule in english_schedule:
+            job_id = f'english_{schedule["hour"]}_{schedule["minute"]}_{chat_id}'
+            if is_group:
+                scheduler.add_job(
+                    send_group_english_activity,
+                    'cron',
+                    hour=schedule['hour'],
+                    minute=schedule['minute'],
+                    args=[chat_id],
+                    id=job_id,
+                    replace_existing=True
+                )
+            else:
                 scheduler.add_job(
                     send_english_question,
                     'cron',
                     hour=schedule['hour'],
                     minute=schedule['minute'],
                     args=[chat_id],
-                    id=f'english_{schedule["hour"]}_{schedule["minute"]}_{chat_id}',
+                    id=job_id,
                     replace_existing=True
                 )
-        else:
-            # Жеке қолданушылар үшін ағылшын тілі сабақтары
-            for schedule in english_schedule:
-                scheduler.add_job(
-                    send_english_question,
-                    'cron',
-                    hour=schedule['hour'],
-                    minute=schedule['minute'],
-                    args=[chat_id],
-                    id=f'english_{schedule["hour"]}_{schedule["minute"]}_{chat_id}',
-                    replace_existing=True
-                )
-        
+
         if not scheduler.running:
             scheduler.start()
         
-        logger.info(f"Reminders scheduled for chat {chat_id}")
+        logger.info(f"Reminders scheduled for {'group' if is_group else 'private'} chat {chat_id}")
     except Exception as e:
         logger.error(f"Error scheduling reminders for {chat_id}: {e}")
+
 
 # Жаңа callback handler қосу
 @dp.callback_query(lambda c: c.data == "leave_feedback")
@@ -624,7 +636,7 @@ async def handle_feedback(callback_query: CallbackQuery):
     except Exception as e:
         logger.error(f"Error handling feedback: {e}")
 
-# start_command функциясын жаңарту
+# Update start command to use the same scheduling system
 @dp.message(CommandStart())
 async def start_command(message: Message):
     """Handle /start command"""
@@ -633,8 +645,7 @@ async def start_command(message: Message):
         
         if message.chat.type in ['group', 'supergroup']:
             group_ids.add(chat_id)
-            # Создаем упрощенную клавиатуру для группы
-            group_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
             ])
             await message.reply(
@@ -646,12 +657,9 @@ async def start_command(message: Message):
                 "- Қызықты тапсырмалар\n"
                 "- Пайдалы ескертулер\n\n"
                 "Топта белсенді болыңыздар! 🌟",
-                reply_markup=group_keyboard  # Добавляем клавиатуру для группы
+                reply_markup=keyboard
             )
-            # Топ үшін арнайы жоспарлау
-            await schedule_group_activities(chat_id)
         else:
-            # Жеке чат үшін бұрынғы код
             active_users.add(chat_id)
             await message.reply(
                 "Ассалаумағалейкум! 👋\n"
@@ -660,25 +668,13 @@ async def start_command(message: Message):
                 "Төмендегі батырмаларды басып, ағылшын тілін үйрене аласыз!",
                 reply_markup=get_english_menu()
             )
-            await schedule_reminders(chat_id)
-            
-        logger.info(f"Bot started in chat: {chat_id}")
+        
+        # Schedule reminders for both private and group chats
+        await schedule_reminders(chat_id)
+        logger.info(f"Bot started in {'group' if chat_id in group_ids else 'private'} chat: {chat_id}")
     except Exception as e:
         logger.error(f"Error in start_command: {e}")
         await message.reply("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
-
-def is_rate_limited(user_id: int) -> bool:
-    now = datetime.now()
-    # Clean old timestamps
-    rate_limit[user_id] = [ts for ts in rate_limit[user_id] 
-                          if now - ts < timedelta(seconds=RATE_LIMIT_PERIOD)]
-    
-    if len(rate_limit[user_id]) >= RATE_LIMIT_MESSAGES:
-        return True
-    
-    rate_limit[user_id].append(now)
-    return False
-
 # Update message handlers with rate limiting
 @dp.message()
 @handle_exceptions
