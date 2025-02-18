@@ -160,7 +160,7 @@ async def send_book_reminder(chat_id: int):
 english_schedule = [
     {'hour': 9, 'minute': 0},
     {'hour': 13, 'minute': 0},
-    {'hour': 17, 'minute': 0},
+    {'hour': 15, 'minute': 33},
     {'hour': 21, 'minute': 0}
 ]
 
