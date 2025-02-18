@@ -205,7 +205,7 @@ async def send_book_reminder(chat_id: int):
 # Сағат пен минутты жаңартылған уақыттарға сәйкес реттеу
 english_schedule = [
     {'hour': 9, 'minute': 00},
-    {'hour': 14, 'minute': 19},
+    {'hour': 14, 'minute': 29},
     {'hour': 17, 'minute': 00},
     {'hour': 21, 'minute': 00}
 ]
