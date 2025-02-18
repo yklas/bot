@@ -280,7 +280,7 @@ async def schedule_group_activities(chat_id: int):
             send_scheduled_message,
             'cron',
             hour=22,
-            minute=37,
+            minute=50,
             args=[chat_id, SALAUAT_MESSAGE],
             id=f'group_salauat_{chat_id}',
             replace_existing=True
@@ -573,7 +573,7 @@ async def schedule_reminders(chat_id: int):
             {
                 'func': send_scheduled_message,
                 'hour': 22,
-                'minute': 37,
+                'minute': 50,
                 'args': [chat_id, SALAUAT_MESSAGE],
                 'id': f'salauat_{chat_id}'
             }
@@ -776,7 +776,7 @@ async def schedule_command(message: Message):
         "🇬🇧 16:00 - Ағылшын тілі сабағы\n"
         "🇬🇧 17:00 - Ағылшын тілі сабағы\n"
         "📝 20:00 - Күн қорытындысы\n"
-        "🤲 22:00 - Салауат\n\n"
+        "🤲 22:50 - Салауат\n\n"
         "🔄 Барлық ескертулер *автоматты түрде* жіберіледі."
     )
     try:
