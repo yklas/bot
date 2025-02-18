@@ -160,7 +160,7 @@ async def send_book_reminder(chat_id: int):
 english_schedule = [
     {'hour': 9, 'minute': 0},
     {'hour': 13, 'minute': 0},
-    {'hour': 15, 'minute': 40},
+    {'hour': 16, 'minute': 0},
     {'hour': 21, 'minute': 0}
 ]
 
@@ -194,7 +194,7 @@ async def schedule_group_activities(chat_id: int):
             send_scheduled_message,
             'cron',
             hour=15, 
-            minute=42,
+            minute=46,
             args=[chat_id, AFTERNOON_MESSAGE],
             id=f'group_afternoon_{chat_id}',
             replace_existing=True
