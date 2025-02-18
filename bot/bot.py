@@ -330,7 +330,8 @@ async def process_answer(callback_query: CallbackQuery):
                 "asked_questions": [],
                 "current_question": None,
                 "correct_answers": 0,
-                "questions_answered": 0
+                "questions_answered": 0,
+                "last_question_message": None  # Add this to track the last question message
             }
         
         current_question = user_progress[chat_id].get("current_question")
@@ -339,11 +340,12 @@ async def process_answer(callback_query: CallbackQuery):
             # Remove the old keyboard
             await callback_query.message.edit_reply_markup(reply_markup=None)
             
+            # Store result message for later deletion
             if selected_answer == current_question["correct"]:
                 user_progress[chat_id]["correct_answers"] += 1
-                await callback_query.message.reply("🎉 Дұрыс! / Correct!")
+                result_message = await callback_query.message.reply("🎉 Дұрыс! / Correct!")
             else:
-                await callback_query.message.reply(
+                result_message = await callback_query.message.reply(
                     f"❌ Қате! Дұрыс жауап: {current_question['correct']}"
                 )
             
@@ -360,7 +362,14 @@ async def process_answer(callback_query: CallbackQuery):
                 [InlineKeyboardButton(text="🔙 Басты мәзір", callback_data="main_menu")]
             ])
             
-            await callback_query.message.reply(result_text, reply_markup=keyboard)
+            status_message = await callback_query.message.reply(result_text, reply_markup=keyboard)
+            
+            # Store messages to be deleted when moving to next question
+            user_progress[chat_id]["last_question_message"] = {
+                "question": callback_query.message,
+                "result": result_message,
+                "status": status_message
+            }
         
     except Exception as e:
         logger.error(f"Error in process_answer: {e}")
@@ -372,22 +381,27 @@ async def next_question(callback_query: CallbackQuery):
     try:
         await callback_query.answer()
         chat_id = callback_query.message.chat.id
+        
+        # Delete previous messages if they exist
+        if chat_id in user_progress and user_progress[chat_id].get("last_question_message"):
+            last_messages = user_progress[chat_id]["last_question_message"]
+            try:
+                # Delete previous question, result, and status messages
+                await last_messages["question"].delete()
+                await last_messages["result"].delete()
+                await last_messages["status"].delete()
+            except Exception as delete_error:
+                logger.error(f"Error deleting messages: {delete_error}")
+            
+            # Clear the stored messages
+            user_progress[chat_id]["last_question_message"] = None
+        
+        # Send new question
         await send_english_question(chat_id)
+        
     except Exception as e:
         logger.error(f"Error in next_question: {e}")
         await callback_query.message.answer("Қателік орын алды. Қайтадан көріңіз.")
-
-@dp.callback_query(lambda c: c.data == "main_menu")
-async def show_main_menu(callback_query: CallbackQuery):
-    """Return to main menu"""
-    try:
-        await callback_query.answer()
-        await callback_query.message.answer(
-            "Басты мәзір:",
-            reply_markup=get_english_menu()
-        )
-    except Exception as e:
-        logger.error(f"Error in show_main_menu: {e}")
 
 @dp.callback_query(lambda c: c.data == "my_progress")
 async def show_progress(callback_query: CallbackQuery):
