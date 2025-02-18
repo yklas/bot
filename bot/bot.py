@@ -21,9 +21,9 @@ from openai import AsyncOpenAI
 load_dotenv()
 
 # Configuration
-TELEGRAM_TOKEN = os.getenv("7819420348:AAHElDNd7JI4c5gDbYD7TTe2kAWVn2TVZBo")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-UNSPLASH_API_KEY = os.getenv("wrRriht7OgwjV_rFL7LwmZZltHBUZRf8NCGE47h5Rb8")
+UNSPLASH_API_KEY = os.getenv("UNSPLASH_API_KEY")
 TIMEZONE = pytz.timezone('Asia/Almaty')
 
 # Logging setup
@@ -415,7 +415,8 @@ async def main():
     finally:
         scheduler.shutdown()
         await bot.session
-        @dp.message(Command("stats"))
+
+@dp.message(Command("stats"))
 async def stats_command(message: Message):
     """Handle /stats command - show user statistics"""
     try:
@@ -632,3 +633,115 @@ async def broadcast_command(message: Message):
     except Exception as e:
         logger.error(f"Error in broadcast_command: {e}")
         await message.reply("Қателік орын алды. Қайтадан көріңіз.")
+
+@dp.message()
+async def handle_other_messages(message: Message):
+    """Handle all other messages"""
+    if message.chat.type in ['group', 'supergroup']:
+        # Only respond to messages specifically mentioning the bot in groups
+        if message.mentioned:
+            await message.reply(
+                "Көмек керек пе? /help командасын қолданыңыз!\n"
+                "Need help? Use the /help command!"
+            )
+    else:
+        # For private chats, provide a helpful response
+        await message.reply(
+            "Қолжетімді командалар:\n"
+            "/start - Ботты бастау\n"
+            "/learn - Жаңа сұрақтар алу\n"
+            "/stats - Статистика көру\n"
+            "/help - Көмек алу"
+        )
+
+async def send_reminder():
+    """Send daily reminder to inactive users"""
+    try:
+        db = Database()
+        current_date = datetime.now(TIMEZONE).strftime('%Y-%m-%d')
+        
+        # Find users who haven't answered today's questions
+        db.c.execute('''
+            SELECT DISTINCT u.user_id
+            FROM users u
+            LEFT JOIN user_progress up ON 
+                u.user_id = up.user_id AND 
+                date(up.answer_date) = ?
+            WHERE u.is_active = TRUE AND up.user_id IS NULL
+        ''', (current_date,))
+        
+        inactive_users = db.c.fetchall()
+        
+        reminder_message = (
+            "🔔 Сәлеметсіз!\n\n"
+            "Бүгін сіз әлі сұрақтарға жауап берген жоқсыз.\n"
+            "Білім жолында тоқтамаңыз! 💪\n\n"
+            "Жаңа сұрақтар алу үшін /learn командасын жіберіңіз."
+        )
+        
+        for user_id in inactive_users:
+            try:
+                await bot.send_message(user_id[0], reminder_message)
+                await asyncio.sleep(0.1)  # Avoid hitting rate limits
+            except Exception as e:
+                logger.error(f"Error sending reminder to user {user_id[0]}: {e}")
+        
+        db.close()
+        
+    except Exception as e:
+        logger.error(f"Error in send_reminder: {e}")
+
+# Add reminder schedule
+scheduler.add_job(
+    send_reminder,
+    'cron',
+    hour=20,  # Send reminder at 8 PM
+    minute=0,
+    timezone=TIMEZONE
+)
+
+async def cleanup_inactive():
+    """Clean up inactive users and groups"""
+    try:
+        db = Database()
+        month_ago = (datetime.now(TIMEZONE) - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # Mark users as inactive if no activity for 30 days
+        db.c.execute('''
+            UPDATE users
+            SET is_active = FALSE
+            WHERE user_id IN (
+                SELECT DISTINCT u.user_id
+                FROM users u
+                LEFT JOIN user_progress up ON 
+                    u.user_id = up.user_id AND 
+                    date(up.answer_date) >= ?
+                WHERE u.is_active = TRUE AND up.user_id IS NULL
+            )
+        ''', (month_ago,))
+        
+        # Mark groups as inactive if bot was removed
+        for group in db.c.execute('SELECT group_id FROM groups WHERE is_active = TRUE'):
+            try:
+                await bot.get_chat(group[0])
+            except Exception:
+                db.c.execute('UPDATE groups SET is_active = FALSE WHERE group_id = ?', (group[0],))
+        
+        db.conn.commit()
+        db.close()
+        
+    except Exception as e:
+        logger.error(f"Error in cleanup_inactive: {e}")
+
+# Add cleanup schedule
+scheduler.add_job(
+    cleanup_inactive,
+    'cron',
+    hour=3,  # Run cleanup at 3 AM
+    minute=0,
+    timezone=TIMEZONE
+)
+
+if __name__ == '__main__':
+    # Run the bot
+    asyncio.run(main())
