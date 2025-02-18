@@ -141,10 +141,14 @@ EVENING_MESSAGE = "📝 Күн қорытындысы! Бүгінгі күнің
 SALAUAT_MESSAGE = "Бүгінгі салауатты ұмытпайық! Аллахумма солли 'аля саййидина Мухаммадин уа 'аля али саййидина Мухаммад"
 
 # Жаңа
-scheduler = AsyncIOScheduler(timezone=TIMEZONE, job_defaults={
-    'misfire_grace_time': None,  # Өткізіп алған тапсырмаларды орындауға рұқсат
-    'coalesce': True  # Бірдей тапсырмаларды біріктіру
-})
+scheduler = AsyncIOScheduler(
+    timezone=TIMEZONE,
+    job_defaults={
+        'misfire_grace_time': 60,  # 60 секундтық кешігуге рұқсат етеді
+        'coalesce': True
+    }
+)
+
 GROUP_CHAT_ID = "-2385835678" 
 
 # Scheduled messages жаңарту
@@ -205,7 +209,7 @@ async def send_book_reminder(chat_id: int):
 # Сағат пен минутты жаңартылған уақыттарға сәйкес реттеу
 english_schedule = [
     {'hour': 9, 'minute': 00},
-    {'hour': 14, 'minute': 29},
+    {'hour': 14, 'minute': 35},
     {'hour': 17, 'minute': 00},
     {'hour': 21, 'minute': 00}
 ]
