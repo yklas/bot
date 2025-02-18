@@ -280,7 +280,7 @@ async def schedule_group_activities(chat_id: int):
             send_scheduled_message,
             'cron',
             hour=22,
-            minute=33,
+            minute=37,
             args=[chat_id, SALAUAT_MESSAGE],
             id=f'group_salauat_{chat_id}',
             replace_existing=True
@@ -573,7 +573,7 @@ async def schedule_reminders(chat_id: int):
             {
                 'func': send_scheduled_message,
                 'hour': 22,
-                'minute': 33,
+                'minute': 37,
                 'args': [chat_id, SALAUAT_MESSAGE],
                 'id': f'salauat_{chat_id}'
             }
