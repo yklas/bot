@@ -14,7 +14,7 @@ from typing import List, Dict
 TELEGRAM_TOKEN = "7819420348:AAHElDNd7JI4c5gDbYD7TTe2kAWVn2TVZBo"
 TIMEZONE = pytz.timezone('Asia/Almaty')
 
-# Logging setup with more detailed format
+# Логгер баптауы
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -22,21 +22,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize bot and dispatcher
+# Бот және диспетчерді инициализациялау
 bot = Bot(token=TELEGRAM_TOKEN)
-dp = Dispatcher()
+dp = Dispatcher(bot=bot)
 
-# Initialize scheduler with explicit timezone and job defaults
-scheduler = AsyncIOScheduler(
-    timezone=TIMEZONE,
-    job_defaults={
-        'misfire_grace_time': 300,  # 5 minutes grace time
-        'coalesce': True,
-        'max_instances': 1
-    }
-)
+# Жоспарлаушы
+scheduler = AsyncIOScheduler(timezone=TIMEZONE)
+scheduler.start()
 
-# Store active users and group chats
+# Белсенді қолданушылар
 active_users = set()
 group_ids = set()
 
@@ -94,7 +88,7 @@ GROUP_MESSAGES = {
 # English schedule
 english_schedule = [
     {'hour': 9, 'minute': 0},
-    {'hour': 14, 'minute': 53},
+    {'hour': 14, 'minute': 47},
     {'hour': 17, 'minute': 0},
     {'hour': 21, 'minute': 0}
 ]
@@ -102,18 +96,16 @@ english_schedule = [
 # User progress tracking
 user_progress: Dict[int, Dict] = {}
 
+# Хабарлама жіберу функциясы
 async def send_scheduled_message(chat_id: int, message: str):
-    """Send scheduled message to user or group"""
+    """Жоспарланған хабарламаны жібереді."""
     try:
-        keyboard = get_english_menu() if chat_id not in group_ids else None
-        await bot.send_message(chat_id, message, reply_markup=keyboard)
-        logger.info(f"Scheduled message sent to {chat_id}")
+        await bot.send_message(chat_id, message)
+        logger.info(f"Хабарлама жіберілді: {chat_id}")
     except Exception as e:
-        logger.error(f"Error sending scheduled message to {chat_id}: {e}")
+        logger.error(f"Хабарлама жіберуде қате: {e}")
         if chat_id in active_users:
             active_users.discard(chat_id)
-        if chat_id in group_ids:
-            group_ids.discard(chat_id)
 
 async def send_english_question(chat_id: int) -> None:
     """Send English learning question to chat"""
@@ -166,127 +158,53 @@ async def send_english_question(chat_id: int) -> None:
             text="Қателік орын алды. Қайтадан көріңіз. /start"
         )
 
+# Уақытпен жоспарлау
 async def schedule_reminders(chat_id: int):
-    """Schedule all reminders for a user or group"""
+    """Белгілі бір қолданушы үшін уақытпен хабарламаларды жоспарлау."""
     try:
-        logger.info(f"Starting to schedule reminders for chat {chat_id}")
-        
-        # Remove existing jobs for this chat
+        logger.info(f"Жоспарлауды бастау: {chat_id}")
+
+        # Алдыңғы жоспарларды тазалау
         for job in scheduler.get_jobs():
             if str(chat_id) in job.id:
                 scheduler.remove_job(job.id)
-                logger.info(f"Removed existing job {job.id}")
         
-        # Define schedules with explicit triggers
+        # Уақыт бойынша жоспарлау
         schedules = [
-            {
-                'id': f'morning_{chat_id}',
-                'trigger': CronTrigger(hour=7, minute=0, timezone=TIMEZONE),
-                'message': random.choice(MORNING_MESSAGES)
-            },
-            {
-                'id': f'noon_{chat_id}',
-                'trigger': CronTrigger(hour=10, minute=0, timezone=TIMEZONE),
-                'message': NOON_MESSAGE
-            },
-            {
-                'id': f'afternoon_{chat_id}',
-                'trigger': CronTrigger(hour=16, minute=0, timezone=TIMEZONE),
-                'message': AFTERNOON_MESSAGE
-            },
-            {
-                'id': f'evening_{chat_id}',
-                'trigger': CronTrigger(hour=20, minute=0, timezone=TIMEZONE),
-                'message': EVENING_MESSAGE
-            },
-            {
-                'id': f'salauat_{chat_id}',
-                'trigger': CronTrigger(hour=22, minute=0, timezone=TIMEZONE),
-                'message': SALAUAT_MESSAGE
-            }
+            {'id': f'morning_{chat_id}', 'time': (7, 0), 'message': random.choice(MORNING_MESSAGES)},
+            {'id': f'noon_{chat_id}', 'time': (12, 0), 'message': NOON_MESSAGE},
+            {'id': f'afternoon_{chat_id}', 'time': (16, 0), 'message': AFTERNOON_MESSAGE},
+            {'id': f'evening_{chat_id}', 'time': (20, 0), 'message': EVENING_MESSAGE},
+            {'id': f'salauat_{chat_id}', 'time': (22, 0), 'message': SALAUAT_MESSAGE},
         ]
-        
-        # Add English learning schedules
-        for time in english_schedule:
-            schedules.append({
-                'id': f'english_{chat_id}_{time["hour"]}_{time["minute"]}',
-                'trigger': CronTrigger(hour=time['hour'], minute=time['minute'], timezone=TIMEZONE),
-                'func': send_group_english_activity,
-                'args': [chat_id]
-            })
-        
-        # Schedule all jobs
+
+        # Әрбір хабарламаны жоспарлау
         for schedule in schedules:
-            if 'func' in schedule:
-                scheduler.add_job(
-                    schedule['func'],
-                    trigger=schedule['trigger'],
-                    args=schedule['args'],
-                    id=schedule['id'],
-                    replace_existing=True
-                )
-            else:
-                scheduler.add_job(
-                    send_scheduled_message,
-                    trigger=schedule['trigger'],
-                    args=[chat_id, schedule['message']],
-                    id=schedule['id'],
-                    replace_existing=True
-                )
-            logger.info(f"Scheduled job {schedule['id']}")
-        
-        # Verify scheduled jobs
-        current_jobs = scheduler.get_jobs()
-        logger.info(f"Currently scheduled jobs for chat {chat_id}: {[job.id for job in current_jobs]}")
-        
-        # Log next run times
-        for job in current_jobs:
-            if str(chat_id) in job.id:
-                logger.info(f"Next run time for {job.id}: {job.next_run_time}")
-        
+            scheduler.add_job(
+                send_scheduled_message,
+                trigger=CronTrigger(hour=schedule['time'][0], minute=schedule['time'][1], timezone=TIMEZONE),
+                args=[chat_id, schedule['message']],
+                id=schedule['id'],
+                replace_existing=True
+            )
+            logger.info(f"Жоспарланған хабарлама: {schedule['id']}")
+
     except Exception as e:
-        logger.error(f"Error scheduling reminders for {chat_id}: {e}")
-        raise
+        logger.error(f"Жоспарлау қатесі: {e}")
 
 # Command handlers
+# Старт командасы
 @dp.message(CommandStart())
 async def start_command(message: Message):
-    """Handle /start command"""
-    try:
-        chat_id = message.chat.id
-        
-        if message.chat.type in ['group', 'supergroup']:
-            group_ids.add(chat_id)
-            group_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
-            ])
-            await message.reply(
-                "Ассалаумағалейкум, топ мүшелері! 👋\n\n"
-                "Мен сіздердің көмекшілеріңізбін!\n"
-                "🎯 Менің мүмкіндіктерім:\n"
-                "- Күнделікті ағылшын тілі сабақтары\n"
-                "- Топ белсенділігін арттыру\n"
-                "- Қызықты тапсырмалар\n"
-                "- Пайдалы ескертулер\n\n"
-                "Топта белсенді болыңыздар! 🌟",
-                reply_markup=group_keyboard
-            )
-            await schedule_group_activities(chat_id)
-        else:
-            active_users.add(chat_id)
-            await message.reply(
-                "Ассалаумағалейкум! 👋\n"
-                "Мен сіздің көмекшіңізбін. Сұрақтарыңызға жауап беріп, "
-                "күнделікті ескертулер жасаймын!\n\n"
-                "Төмендегі батырмаларды басып, ағылшын тілін үйрене аласыз!",
-                reply_markup=get_english_menu()
-            )
-            await schedule_reminders(chat_id)
-        
-        logger.info(f"Bot started in chat: {chat_id}")
-    except Exception as e:
-        logger.error(f"Error in start_command: {e}")
-        await message.reply("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
+    """Қолданушы /start командасын жазғанда орындалады."""
+    chat_id = message.chat.id
+    active_users.add(chat_id)
+    
+    # Хабарлама жіберу
+    await message.answer("Сәлем! Бұл бот жоспарланған хабарламалар жібереді.")
+    
+    # Жоспарлау
+    await schedule_reminders(chat_id)
 
 @dp.message(Command('help'))
 async def help_command(message: Message):
@@ -490,16 +408,14 @@ async def show_progress(callback_query: CallbackQuery):
         logger.error(f"Error in show_progress: {e}")
         await callback_query.answer("Қателік орын алды. Қайтадан көріңіз.")
 
+# Басты функция
 async def main():
-    """Main function to start the bot"""
+    """Ботты іске қосу"""
     try:
-        logger.info("Starting bot...")
-        scheduler.start()
-        await dp.start_polling(bot)
+        logger.info("Бот іске қосылды!")
+        await dp.start_polling()
     except Exception as e:
-        logger.error(f"Error in main function: {e}")
-    finally:
-        await bot.session.close()
+        logger.error(f"Ботты іске қосуда қате: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
