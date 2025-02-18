@@ -654,11 +654,19 @@ async def handle_messages(message: Message):
 
 async def main() -> None:
     try:
-        # Scheduler-ді алдымен іске қосамыз
+        # Scheduler-ді іске қосу
         scheduler.start()
         logger.info("Scheduler started successfully")
         
-        # Командаларды орнату
+        # Scheduler жұмысын тексеру
+        jobs = scheduler.get_jobs()
+        logger.info(f"Scheduled jobs: {[job.id for job in jobs]}")
+        
+        # Келесі орындалатын тапсырманы тексеру
+        for job in jobs:
+            logger.info(f"Next run time for {job.id}: {job.next_run_time}")
+        
+        # Командаларды орнату және polling бастау
         commands_list = [
             types.BotCommand(command="start", description="Бастау / Start the bot"),
             types.BotCommand(command="help", description="Көмек / Help information"),
@@ -666,7 +674,6 @@ async def main() -> None:
         ]
         await bot.set_my_commands(commands_list)
         
-        # Polling-ті бастау
         logger.info("Starting bot polling...")
         await dp.start_polling(bot, skip_updates=True)
         
