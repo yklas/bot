@@ -224,7 +224,7 @@ async def send_book_reminder(chat_id: int):
 english_schedule = [
     {'hour': 9, 'minute': 0},
     {'hour': 13, 'minute': 0},
-    {'hour': 18, 'minute': 20},
+    {'hour': 18, 'minute': 30},
     {'hour': 21, 'minute': 0}
 ]
 
@@ -257,8 +257,8 @@ async def schedule_group_activities(chat_id: int):
         scheduler.add_job(
             send_scheduled_message,
             'cron',
-            hour=15, 
-            minute=46,
+            hour=18, 
+            minute=30,
             args=[chat_id, AFTERNOON_MESSAGE],
             id=f'group_afternoon_{chat_id}',
             replace_existing=True
@@ -550,7 +550,7 @@ async def schedule_reminders(chat_id: int):
             send_scheduled_message,
             'cron',
             hour=18,
-            minute=20,
+            minute=30,
             args=[chat_id, AFTERNOON_MESSAGE],
             id=f'afternoon_{chat_id}',
             replace_existing=True
@@ -698,14 +698,16 @@ async def handle_messages(message: Message):
                        )]
                    ]))
         await message.answer(BASIC_RESPONSES[text], reply_markup=keyboard)
+        
     # Update user/group tracking
     if message.chat.type == 'private':
         active_users.add(message.chat.id)
     elif message.chat.type in ['group', 'supergroup']:
         group_ids.add(message.chat.id)
-            
     except Exception as e:
         logger.error(f"Error in handle_messages: {e}")
+
+
 # Add proper cleanup on shutdown
 async def shutdown(dispatcher: Dispatcher):
     """Cleanup resources on shutdown"""
