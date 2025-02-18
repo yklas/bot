@@ -710,4 +710,3 @@ async def schedule_command(message: Message):
 # Ensure the bot is run only if this script is executed directly
 if __name__ == "__main__":
     asyncio.run(main())
-            
