@@ -13,20 +13,55 @@ from typing import List, Dict
 TELEGRAM_TOKEN = "7819420348:AAHElDNd7JI4c5gDbYD7TTe2kAWVn2TVZBo"
 TIMEZONE = pytz.timezone('Asia/Almaty')
 
-# Logging setup
-logging.basicConfig(level=logging.INFO)
+# Logging setup with more detailed configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('bot.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
-# Initialize bot and dispatcher
+# Initialize bot and dispatcher with error handling
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
-# Store active users and group chats
-active_users = set()
-group_ids = set()
+# Store active users and group chats with proper type hints
+active_users: set[int] = set()
+group_ids: set[int] = set()
+
+# Add error handling decorator
+def handle_exceptions(func):
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Error in {func.__name__}: {e}", exc_info=True)
+            # Get chat_id from different possible argument types
+            chat_id = None
+            for arg in args:
+                if isinstance(arg, Message):
+                    chat_id = arg.chat.id
+                elif isinstance(arg, CallbackQuery):
+                    chat_id = arg.message.chat.id
+                elif isinstance(arg, int):
+                    chat_id = arg
+            
+            if chat_id:
+                try:
+                    await bot.send_message(
+                        chat_id=chat_id,
+                        text="Қателік орын алды. Қайтадан әрекеттеніп көріңіз. /start"
+                    )
+                except Exception as send_error:
+                    logger.error(f"Error sending error message: {send_error}")
+    return wrapper
+
 
 # English learning content
-ENGLISH_QUESTIONS = [
+ENGLISH_QUESTIONS: List[Dict] = [
     {
         "id": "1",
         "image_url": "https://m.media-amazon.com/images/I/514nTHwlFnL.jpg",
@@ -57,8 +92,37 @@ ENGLISH_QUESTIONS = [
     }
 ]
 
-# User progress tracking
-user_progress: Dict[int, Dict] = {}
+# Improve user progress tracking with TypedDict
+from typing import TypedDict
+
+class UserProgress(TypedDict):
+    asked_questions: List[str]
+    current_question: Dict | None
+    correct_answers: int
+    questions_answered: int
+    last_question_message: Dict | None
+
+user_progress: Dict[int, UserProgress] = {}
+# Add rate limiting
+from collections import defaultdict
+from datetime import datetime, timedelta
+
+rate_limit: Dict[int, List[datetime]] = defaultdict(list)
+RATE_LIMIT_MESSAGES = 5
+RATE_LIMIT_PERIOD = 60  # seconds
+
+def is_rate_limited(user_id: int) -> bool:
+    now = datetime.now()
+    # Clean old timestamps
+    rate_limit[user_id] = [ts for ts in rate_limit[user_id] 
+                          if now - ts < timedelta(seconds=RATE_LIMIT_PERIOD)]
+    
+    if len(rate_limit[user_id]) >= RATE_LIMIT_MESSAGES:
+        return True
+    
+    rate_limit[user_id].append(now)
+    return False
+
 
 # Basic responses dictionary
 BASIC_RESPONSES = {
@@ -160,7 +224,7 @@ async def send_book_reminder(chat_id: int):
 english_schedule = [
     {'hour': 9, 'minute': 0},
     {'hour': 13, 'minute': 0},
-    {'hour': 16, 'minute': 0},
+    {'hour': 18, 'minute': 20},
     {'hour': 21, 'minute': 0}
 ]
 
@@ -485,8 +549,8 @@ async def schedule_reminders(chat_id: int):
         scheduler.add_job(
             send_scheduled_message,
             'cron',
-            hour=16,
-            minute=0,
+            hour=18,
+            minute=20,
             args=[chat_id, AFTERNOON_MESSAGE],
             id=f'afternoon_{chat_id}',
             replace_existing=True
@@ -602,34 +666,60 @@ async def start_command(message: Message):
     except Exception as e:
         logger.error(f"Error in start_command: {e}")
         await message.reply("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
+
+def is_rate_limited(user_id: int) -> bool:
+    now = datetime.now()
+    # Clean old timestamps
+    rate_limit[user_id] = [ts for ts in rate_limit[user_id] 
+                          if now - ts < timedelta(seconds=RATE_LIMIT_PERIOD)]
+    
+    if len(rate_limit[user_id]) >= RATE_LIMIT_MESSAGES:
+        return True
+    
+    rate_limit[user_id].append(now)
+    return False
+
+# Update message handlers with rate limiting
 @dp.message()
+@handle_exceptions
 async def handle_messages(message: Message):
-    """Handle all incoming messages"""
-    try:
-        text = message.text.lower() if message.text else ""
-        if text in BASIC_RESPONSES:
-            # Добавляем клавиатуру в зависимости от типа чата
-            if message.chat.type == 'private':
-                keyboard = get_english_menu()
-            else:
-                # Упрощенная клавиатура для групп
-                keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
-                ])
-            await message.answer(BASIC_RESPONSES[text], reply_markup=keyboard)
-            
-        # Add user to active users if it's a private chat
-        if message.chat.type == 'private':
-            active_users.add(message.chat.id)
-        # Add group to groups list if it's a group chat
-        elif message.chat.type in ['group', 'supergroup']:
-            group_ids.add(message.chat.id)
+    """Handle all incoming messages with rate limiting"""
+    if is_rate_limited(message.from_user.id):
+        await message.answer("Тым жиі хабарлама жібердіңіз. Біраз күте тұрыңыз.")
+        return
+
+    text = message.text.lower() if message.text else ""
+    if text in BASIC_RESPONSES:
+        keyboard = (get_english_menu() if message.chat.type == 'private' 
+                   else InlineKeyboardMarkup(inline_keyboard=[
+                       [InlineKeyboardButton(
+                           text="📚 Ағылшын тілін үйрену", 
+                           callback_data="learn_english"
+                       )]
+                   ]))
+        await message.answer(BASIC_RESPONSES[text], reply_markup=keyboard)
+    # Update user/group tracking
+    if message.chat.type == 'private':
+        active_users.add(message.chat.id)
+    elif message.chat.type in ['group', 'supergroup']:
+        group_ids.add(message.chat.id)
             
     except Exception as e:
         logger.error(f"Error in handle_messages: {e}")
+# Add proper cleanup on shutdown
+async def shutdown(dispatcher: Dispatcher):
+    """Cleanup resources on shutdown"""
+    try:
+        if scheduler.running:
+            scheduler.shutdown(wait=True)
+        await bot.session.close()
+        logger.info("Bot shut down successfully")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
 
+# Update main function with proper shutdown handling
 async def main() -> None:
-    """Main function to start the bot"""
+    """Main function to start the bot with proper error handling"""
     try:
         # Start the scheduler
         if not scheduler.running:
@@ -643,14 +733,13 @@ async def main() -> None:
         ]
         await bot.set_my_commands(commands_list)
         
-        # Start the bot
+        # Start polling with proper error handling
+        logger.info("Bot started successfully")
         await dp.start_polling(bot)
     except Exception as e:
-        logger.error(f"Error in main function: {e}")
+        logger.error(f"Critical error in main function: {e}", exc_info=True)
     finally:
-        # Stop the scheduler
-        scheduler.shutdown()
-        await bot.session.close()
+        await shutdown(dp)
 
 @dp.message(Command('help'))
 async def help_command(message: Message):
