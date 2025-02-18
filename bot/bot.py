@@ -88,7 +88,7 @@ GROUP_MESSAGES = {
 # English schedule
 english_schedule = [
     {'hour': 9, 'minute': 0},
-    {'hour': 14, 'minute': 47},
+    {'hour': 15, 'minute': 30},
     {'hour': 17, 'minute': 0},
     {'hour': 21, 'minute': 0}
 ]
