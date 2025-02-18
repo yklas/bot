@@ -499,20 +499,25 @@ async def morning_reminder(chat_id: int):
 async def schedule_reminders(chat_id: int):
     """Schedule all reminders for a user or group"""
     try:
-        is_group = chat_id in group_ids
+        logger.info(f"Scheduling reminders for chat {chat_id}")
         
-        # Schedule daily reminders
+        # Алдымен осы чат үшін бар тапсырмаларды өшіреміз
+        for job in scheduler.get_jobs():
+            if str(chat_id) in job.id:
+                scheduler.remove_job(job.id)
+        
+        # Таңғы хабарлама
         scheduler.add_job(
-            morning_reminder,
+            send_scheduled_message,
             'cron',
             hour=7,
             minute=0,
-            args=[chat_id],
+            args=[chat_id, random.choice(MORNING_MESSAGES)],
             id=f'morning_{chat_id}',
             replace_existing=True
         )
         
-        # Schedule noon message - 10:00
+        # Түскі хабарлама
         scheduler.add_job(
             send_scheduled_message,
             'cron',
@@ -523,7 +528,7 @@ async def schedule_reminders(chat_id: int):
             replace_existing=True
         )
         
-        # Schedule afternoon message - 16:00
+        # Түстен кейінгі хабарлама
         scheduler.add_job(
             send_scheduled_message,
             'cron',
@@ -534,7 +539,7 @@ async def schedule_reminders(chat_id: int):
             replace_existing=True
         )
         
-        # Schedule evening message - 20:00
+        # Кешкі хабарлама
         scheduler.add_job(
             send_scheduled_message,
             'cron',
@@ -545,7 +550,7 @@ async def schedule_reminders(chat_id: int):
             replace_existing=True
         )
         
-        # Schedule salauat message - 22:00
+        # Салауат хабарламасы
         scheduler.add_job(
             send_scheduled_message,
             'cron',
@@ -556,36 +561,9 @@ async def schedule_reminders(chat_id: int):
             replace_existing=True
         )
         
-        # Schedule English questions based on chat type
-        if is_group:
-            # Ағылшын тілі сабақтары белгіленген уақыттарда
-            for schedule in english_schedule:
-                scheduler.add_job(
-                    send_english_question,
-                    'cron',
-                    hour=schedule['hour'],
-                    minute=schedule['minute'],
-                    args=[chat_id],
-                    id=f'english_{schedule["hour"]}_{schedule["minute"]}_{chat_id}',
-                    replace_existing=True
-                )
-        else:
-            # Жеке қолданушылар үшін ағылшын тілі сабақтары
-            for schedule in english_schedule:
-                scheduler.add_job(
-                    send_english_question,
-                    'cron',
-                    hour=schedule['hour'],
-                    minute=schedule['minute'],
-                    args=[chat_id],
-                    id=f'english_{schedule["hour"]}_{schedule["minute"]}_{chat_id}',
-                    replace_existing=True
-                )
+        logger.info(f"Successfully scheduled all reminders for chat {chat_id}")
+        logger.info(f"Current jobs for chat {chat_id}: {[job.id for job in scheduler.get_jobs() if str(chat_id) in job.id]}")
         
-        if not scheduler.running:
-            scheduler.start()
-        
-        logger.info(f"Reminders scheduled for chat {chat_id}")
     except Exception as e:
         logger.error(f"Error scheduling reminders for {chat_id}: {e}")
 
@@ -671,13 +649,12 @@ async def handle_messages(message: Message):
         logger.error(f"Error in handle_messages: {e}")
 
 async def main() -> None:
-    """Main function to start the bot"""
     try:
-        # Start the scheduler
-        if not scheduler.running:
-            scheduler.start()
-            
-        # Set up commands
+        # Scheduler-ді алдымен іске қосамыз
+        scheduler.start()
+        logger.info("Scheduler started successfully")
+        
+        # Командаларды орнату
         commands_list = [
             types.BotCommand(command="start", description="Бастау / Start the bot"),
             types.BotCommand(command="help", description="Көмек / Help information"),
@@ -685,15 +662,16 @@ async def main() -> None:
         ]
         await bot.set_my_commands(commands_list)
         
-        # Start the bot
-        await dp.start_polling(bot)
+        # Polling-ті бастау
+        logger.info("Starting bot polling...")
+        await dp.start_polling(bot, skip_updates=True)
+        
     except Exception as e:
         logger.error(f"Error in main function: {e}")
+        raise
     finally:
-        # Stop the scheduler
         scheduler.shutdown()
         await bot.session.close()
-
 @dp.message(Command('help'))
 async def help_command(message: Message):
     """Handle /help command"""
