@@ -13,6 +13,7 @@ from typing import List, Dict
 TELEGRAM_TOKEN = "7819420348:AAHElDNd7JI4c5gDbYD7TTe2kAWVn2TVZBo"
 TIMEZONE = pytz.timezone('Asia/Almaty')
 
+
 # Logging setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -139,8 +140,11 @@ AFTERNOON_MESSAGE = "🇬🇧 Қалай, бауырым, ағылшын тіл�
 EVENING_MESSAGE = "📝 Күн қорытындысы! Бүгінгі күнің біліммен өттіма, әлде пайдасыз іспен өттіма? Share your progress! 🎯"
 SALAUAT_MESSAGE = "Бүгінгі салауатты ұмытпайық! Аллахумма солли 'аля саййидина Мухаммадин уа 'аля али саййидина Мухаммад"
 
-# Initialize scheduler
-scheduler = AsyncIOScheduler(timezone=TIMEZONE)
+# Жаңа
+scheduler = AsyncIOScheduler(timezone=TIMEZONE, job_defaults={
+    'misfire_grace_time': None,  # Өткізіп алған тапсырмаларды орындауға рұқсат
+    'coalesce': True  # Бірдей тапсырмаларды біріктіру
+})
 GROUP_CHAT_ID = "-2385835678" 
 
 # Scheduled messages жаңарту
