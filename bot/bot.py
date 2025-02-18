@@ -193,8 +193,8 @@ async def schedule_group_activities(chat_id: int):
         scheduler.add_job(
             send_scheduled_message,
             'cron',
-            hour=16, 
-            minute=0,
+            hour=15, 
+            minute=42,
             args=[chat_id, AFTERNOON_MESSAGE],
             id=f'group_afternoon_{chat_id}',
             replace_existing=True
