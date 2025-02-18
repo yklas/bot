@@ -23,7 +23,7 @@ load_dotenv()
 # Configuration
 TELEGRAM_TOKEN = os.getenv("7819420348:AAHElDNd7JI4c5gDbYD7TTe2kAWVn2TVZBo")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-UNSPLASH_API_KEY = os.getenv("UNSPLASH_API_KEY")
+UNSPLASH_API_KEY = os.getenv("wrRriht7OgwjV_rFL7LwmZZltHBUZRf8NCGE47h5Rb8")
 TIMEZONE = pytz.timezone('Asia/Almaty')
 
 # Logging setup
