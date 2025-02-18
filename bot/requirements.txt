@@ -26,6 +26,7 @@ itsdangerous==2.2.0
 Jinja2==3.1.5
 jiter==0.8.2
 kiwisolver==1.4.8
+load-dotenv==0.1.0
 magic-filter==1.0.12
 MarkupSafe==3.0.2
 matplotlib==3.10.0
@@ -40,6 +41,7 @@ pydantic==2.10.6
 pydantic_core==2.27.2
 pyparsing==3.2.1
 python-dateutil==2.9.0.post0
+python-dotenv==1.0.1
 pytz==2025.1
 seaborn==0.13.2
 setuptools==75.8.0
