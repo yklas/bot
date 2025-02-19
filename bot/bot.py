@@ -8,6 +8,7 @@ import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import random
 from typing import List, Dict
+import json 
 
 # Configuration
 TELEGRAM_TOKEN = "7819420348:AAHElDNd7JI4c5gDbYD7TTe2kAWVn2TVZBo"
@@ -636,6 +637,18 @@ async def handle_feedback(callback_query: CallbackQuery):
     except Exception as e:
         logger.error(f"Error handling feedback: {e}")
 
+# Add these functions
+def save_group_ids():
+    with open('group_ids.json', 'w') as f:
+        json.dump(list(group_ids), f)
+
+def load_group_ids():
+    try:
+        with open('group_ids.json', 'r') as f:
+            return set(json.load(f))
+    except FileNotFoundError:
+        return set()
+
 # Update start command to use the same scheduling system
 @dp.message(CommandStart())
 async def start_command(message: Message):
@@ -645,6 +658,7 @@ async def start_command(message: Message):
         
         if message.chat.type in ['group', 'supergroup']:
             group_ids.add(chat_id)
+            save_group_ids()
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
             ])
@@ -675,62 +689,61 @@ async def start_command(message: Message):
     except Exception as e:
         logger.error(f"Error in start_command: {e}")
         await message.reply("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
-
         
 @dp.message()
+@handle_exceptions
 async def handle_messages(message: Message):
-    """Handle all incoming messages with improved error handling"""
+    """Handle all incoming messages with rate limiting"""
     try:
-        # Ensure message has text
+        # Check rate limiting
+        if is_rate_limited(message.from_user.id):
+            await message.answer("Тым жиі хабарлама жібердіңіз. Біраз күте тұрыңыз.")
+            return
+
+        # Check if message has text
         if not message.text:
             return
 
-        # Get user ID for rate limiting
-        user_id = message.from_user.id if message.from_user else None
-        
-        # Check rate limiting only for users, not for groups
-        if user_id and message.chat.type == 'private':
-            if is_rate_limited(user_id):
-                await message.answer("Тым жиі хабарлама жібердіңіз. Біраз күте тұрыңыз.")
-                return
-
-        # Convert message to lowercase and strip whitespace
+        # Convert message to lowercase for case-insensitive matching
         text = message.text.lower().strip()
 
-        # Check if message is in basic responses
+        # Check if the message is in BASIC_RESPONSES
         if text in BASIC_RESPONSES:
             try:
-                # Create keyboard based on chat type
-                if message.chat.type == 'private':
-                    keyboard = get_english_menu()
-                    # Update active users tracking
-                    active_users.add(message.chat.id)
-                else:
-                    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                # Create appropriate keyboard based on chat type
+                keyboard = (
+                    get_english_menu() 
+                    if message.chat.type == 'private'
+                    else InlineKeyboardMarkup(inline_keyboard=[
                         [InlineKeyboardButton(
                             text="📚 Ағылшын тілін үйрену",
                             callback_data="learn_english"
                         )]
                     ])
-                    # Update group tracking
-                    if message.chat.type in ['group', 'supergroup']:
-                        group_ids.add(message.chat.id)
-
-                # Send response with appropriate keyboard
+                )
+                
+                # Send response with keyboard
                 await message.answer(
                     BASIC_RESPONSES[text],
                     reply_markup=keyboard
                 )
                 
+                # Update tracking
+                if message.chat.type == 'private':
+                    active_users.add(message.chat.id)
+                elif message.chat.type in ['group', 'supergroup']:
+                    group_ids.add(message.chat.id)
+                    
                 logger.info(f"Successfully responded to message '{text}' in chat {message.chat.id}")
                 
             except Exception as e:
-                logger.error(f"Error sending response for '{text}': {e}")
-                await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
+                logger.error(f"Error sending basic response for '{text}': {e}")
+                raise  # Let the decorator handle the error
 
     except Exception as e:
         logger.error(f"Error in handle_messages: {e}")
-        await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
+        # The decorator will handle sending the error message to the user
+
 
 # Add proper cleanup on shutdown
 async def shutdown(dispatcher: Dispatcher):
@@ -747,10 +760,20 @@ async def shutdown(dispatcher: Dispatcher):
 async def main() -> None:
     """Main function to start the bot with proper error handling"""
     try:
+
+        global group_ids
+        group_ids = load_group_ids()
+       
+
         # Start the scheduler
         if not scheduler.running:
             scheduler.start()
-            
+            logger.info(f"Loaded group IDs: {group_ids}")
+
+        # Schedule reminders for all known groups
+            for group_id in group_ids:
+                await schedule_reminders(group_id)
+                logger.info(f"Scheduled reminders for group: {group_id}")
         # Set up commands
         commands_list = [
             types.BotCommand(command="start", description="Бастау / Start the bot"),
@@ -766,6 +789,21 @@ async def main() -> None:
         logger.error(f"Critical error in main function: {e}", exc_info=True)
     finally:
         await shutdown(dp)
+
+
+@dp.message(Command("check_schedules"))
+async def check_schedules(message: Message):
+    try:
+        chat_id = message.chat.id
+        jobs = scheduler.get_jobs()
+        schedules = [f"Job: {job.id}, Next run: {job.next_run_time}" for job in jobs if str(chat_id) in job.id]
+        
+        if schedules:
+            await message.reply("\n".join(schedules))
+        else:
+            await message.reply("No scheduled messages found for this chat")
+    except Exception as e:
+        logger.error(f"Error checking schedules: {e}")
 
 @dp.message(Command('help'))
 async def help_command(message: Message):
