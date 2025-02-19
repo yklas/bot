@@ -678,59 +678,59 @@ async def start_command(message: Message):
 
         
 @dp.message()
-@handle_exceptions
 async def handle_messages(message: Message):
-    """Handle all incoming messages with rate limiting"""
+    """Handle all incoming messages with improved error handling"""
     try:
-        # Check rate limiting
-        if is_rate_limited(message.from_user.id):
-            await message.answer("Тым жиі хабарлама жібердіңіз. Біраз күте тұрыңыз.")
-            return
-
-        # Check if message has text
+        # Ensure message has text
         if not message.text:
             return
 
-        # Convert message to lowercase for case-insensitive matching
+        # Get user ID for rate limiting
+        user_id = message.from_user.id if message.from_user else None
+        
+        # Check rate limiting only for users, not for groups
+        if user_id and message.chat.type == 'private':
+            if is_rate_limited(user_id):
+                await message.answer("Тым жиі хабарлама жібердіңіз. Біраз күте тұрыңыз.")
+                return
+
+        # Convert message to lowercase and strip whitespace
         text = message.text.lower().strip()
 
-        # Check if the message is in BASIC_RESPONSES
+        # Check if message is in basic responses
         if text in BASIC_RESPONSES:
             try:
-                # Create appropriate keyboard based on chat type
-                keyboard = (
-                    get_english_menu() 
-                    if message.chat.type == 'private'
-                    else InlineKeyboardMarkup(inline_keyboard=[
+                # Create keyboard based on chat type
+                if message.chat.type == 'private':
+                    keyboard = get_english_menu()
+                    # Update active users tracking
+                    active_users.add(message.chat.id)
+                else:
+                    keyboard = InlineKeyboardMarkup(inline_keyboard=[
                         [InlineKeyboardButton(
                             text="📚 Ағылшын тілін үйрену",
                             callback_data="learn_english"
                         )]
                     ])
-                )
-                
-                # Send response with keyboard
+                    # Update group tracking
+                    if message.chat.type in ['group', 'supergroup']:
+                        group_ids.add(message.chat.id)
+
+                # Send response with appropriate keyboard
                 await message.answer(
                     BASIC_RESPONSES[text],
                     reply_markup=keyboard
                 )
                 
-                # Update tracking
-                if message.chat.type == 'private':
-                    active_users.add(message.chat.id)
-                elif message.chat.type in ['group', 'supergroup']:
-                    group_ids.add(message.chat.id)
-                    
                 logger.info(f"Successfully responded to message '{text}' in chat {message.chat.id}")
                 
             except Exception as e:
-                logger.error(f"Error sending basic response for '{text}': {e}")
-                raise  # Let the decorator handle the error
+                logger.error(f"Error sending response for '{text}': {e}")
+                await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
 
     except Exception as e:
         logger.error(f"Error in handle_messages: {e}")
-        # The decorator will handle sending the error message to the user
-
+        await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
 
 # Add proper cleanup on shutdown
 async def shutdown(dispatcher: Dispatcher):
