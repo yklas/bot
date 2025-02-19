@@ -675,31 +675,7 @@ async def start_command(message: Message):
     except Exception as e:
         logger.error(f"Error in start_command: {e}")
         await message.reply("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
-# Update message handlers with rate limiting
-@dp.message()
-@handle_exceptions
-async def handle_messages(message: Message):
-    """Handle all incoming messages with rate limiting"""
-    if is_rate_limited(message.from_user.id):
-        await message.answer("Тым жиі хабарлама жібердіңіз. Біраз күте тұрыңыз.")
-        return
 
-    text = message.text.lower() if message.text else ""
-    if text in BASIC_RESPONSES:
-        keyboard = (get_english_menu() if message.chat.type == 'private' 
-                   else InlineKeyboardMarkup(inline_keyboard=[
-                       [InlineKeyboardButton(
-                           text="📚 Ағылшын тілін үйрену", 
-                           callback_data="learn_english"
-                       )]
-                   ]))
-        await message.answer(BASIC_RESPONSES[text], reply_markup=keyboard)
-        
-    # Update user/group tracking
-    if message.chat.type == 'private':
-        active_users.add(message.chat.id)
-    elif message.chat.type in ['group', 'supergroup']:
-        group_ids.add(message.chat.id)
         
 @dp.message()
 @handle_exceptions
