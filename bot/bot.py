@@ -11,7 +11,7 @@ from typing import List, Dict
 import json 
 
 # Configuration
-TELEGRAM_TOKEN = "7819420348:AAHElDNd7JI4c5gDbYD7TTe2kAWVn2TVZBo"
+TELEGRAM_TOKEN = "7819420348:AAG8yOE4qVLy9wOUegX__XV-xTnD7U9BzoQ"
 TIMEZONE = pytz.timezone('Asia/Almaty')
 
 # Logging setup with more detailed configuration
