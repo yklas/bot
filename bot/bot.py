@@ -258,8 +258,8 @@ async def schedule_group_activities(chat_id: int):
         scheduler.add_job(
             send_scheduled_message,
             'cron',
-            hour=18, 
-            minute=30,
+            hour=10, 
+            minute=25,
             args=[chat_id, AFTERNOON_MESSAGE],
             id=f'group_afternoon_{chat_id}',
             replace_existing=True
@@ -557,8 +557,8 @@ async def schedule_reminders(chat_id: int):
             # Afternoon message - 16:00
             {
                 'func': send_scheduled_message,
-                'hour': 16,
-                'minute': 0,
+                'hour': 10,
+                'minute': 25,
                 'args': [chat_id, AFTERNOON_MESSAGE if not is_group else random.choice(GROUP_MESSAGES['english'])],
                 'id': f'afternoon_{chat_id}'
             },
