@@ -265,9 +265,9 @@ async def send_book_reminder(chat_id: int):
 
 # Сағат пен минутты жаңартылған уақыттарға сәйкес реттеу
 english_schedule = [
-    {'hour': 10, 'minute': 32},
+    {'hour': 10, 'minute': 0},
     {'hour': 13, 'minute': 0},
-    {'hour': 18, 'minute': 30},
+    {'hour': 18, 'minute': 0},
     {'hour': 21, 'minute': 0}
 ]
 
@@ -301,7 +301,7 @@ async def schedule_group_activities(chat_id: int):
             send_scheduled_message,
             'cron',
             hour=18, 
-            minute=30,
+            minute=0,
             args=[chat_id, AFTERNOON_MESSAGE],
             id=f'group_afternoon_{chat_id}',
             replace_existing=True
@@ -322,7 +322,7 @@ async def schedule_group_activities(chat_id: int):
         scheduler.add_job(
             send_scheduled_message,
             'cron',
-            hour=22,
+            hour=21,
             minute=50,
             args=[chat_id, SALAUAT_MESSAGE],
             id=f'group_salauat_{chat_id}',
@@ -615,7 +615,7 @@ async def schedule_reminders(chat_id: int):
             # Salauat message - 22:00
             {
                 'func': send_scheduled_message,
-                'hour': 22,
+                'hour': 21,
                 'minute': 50,
                 'args': [chat_id, SALAUAT_MESSAGE],
                 'id': f'salauat_{chat_id}'
@@ -881,11 +881,11 @@ async def schedule_command(message: Message):
         "📅 *Күнделікті хабарламалар кестесі:*\n\n"
         "🌅 07:00 - Таңғы ескерту\n"
         "📚 10:00 - Кітап оқу уақыты\n"
-        "🇬🇧 10:32 - Ағылшын тілі сабағы\n"
-        "🇬🇧 16:00 - Ағылшын тілі сабағы\n"
-        "🇬🇧 17:00 - Ағылшын тілі сабағы\n"
+        "🇬🇧 13:00 - Ағылшын тілі сабағы\n"
+        "🇬🇧 18:00 - Ағылшын тілі сабағы\n"
+        "🇬🇧 21:00 - Ағылшын тілі сабағы\n"
         "📝 20:00 - Күн қорытындысы\n"
-        "🤲 22:50 - Салауат\n\n"
+        "🤲 21:50 - Салауат\n\n"
         "🔄 Барлық ескертулер *автоматты түрде* жіберіледі."
     )
     try:
