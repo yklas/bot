@@ -700,7 +700,60 @@ async def handle_messages(message: Message):
         active_users.add(message.chat.id)
     elif message.chat.type in ['group', 'supergroup']:
         group_ids.add(message.chat.id)
-  
+        
+@dp.message()
+@handle_exceptions
+async def handle_messages(message: Message):
+    """Handle all incoming messages with rate limiting"""
+    try:
+        # Check rate limiting
+        if is_rate_limited(message.from_user.id):
+            await message.answer("Тым жиі хабарлама жібердіңіз. Біраз күте тұрыңыз.")
+            return
+
+        # Check if message has text
+        if not message.text:
+            return
+
+        # Convert message to lowercase for case-insensitive matching
+        text = message.text.lower().strip()
+
+        # Check if the message is in BASIC_RESPONSES
+        if text in BASIC_RESPONSES:
+            try:
+                # Create appropriate keyboard based on chat type
+                keyboard = (
+                    get_english_menu() 
+                    if message.chat.type == 'private'
+                    else InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(
+                            text="📚 Ағылшын тілін үйрену",
+                            callback_data="learn_english"
+                        )]
+                    ])
+                )
+                
+                # Send response with keyboard
+                await message.answer(
+                    BASIC_RESPONSES[text],
+                    reply_markup=keyboard
+                )
+                
+                # Update tracking
+                if message.chat.type == 'private':
+                    active_users.add(message.chat.id)
+                elif message.chat.type in ['group', 'supergroup']:
+                    group_ids.add(message.chat.id)
+                    
+                logger.info(f"Successfully responded to message '{text}' in chat {message.chat.id}")
+                
+            except Exception as e:
+                logger.error(f"Error sending basic response for '{text}': {e}")
+                raise  # Let the decorator handle the error
+
+    except Exception as e:
+        logger.error(f"Error in handle_messages: {e}")
+        # The decorator will handle sending the error message to the user
 
 
 # Add proper cleanup on shutdown
