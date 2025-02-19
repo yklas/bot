@@ -90,6 +90,48 @@ ENGLISH_QUESTIONS: List[Dict] = [
         "question": "Киімдерді жинап, сақтау үшін қолданатын бұл зат қалай аталады?",
         "options": ["Sofa", "Mirror", "Wardrobe", "Table"],
         "correct": "Wardrobe",
+    },
+     {
+        "id": "5",
+        "image_url": "https://hips.hearstapps.com/hmg-prod/images/best-washing-machines-6580810397efc.png?crop=0.405xw:0.811xh;0.300xw,0.0962xh&resize=1200:*",
+        "question": "Киімді жуу үшін қолданатын бұл зат қалай аталады?",
+        "options": ["Vacuum cleaner", "Washing machine", "Iron", "Blender"],
+        "correct": "Washing machine",
+    },
+       {
+        "id": "6",
+        "image_url": "https://images-cdn.ubuy.co.in/65979c2cb910f53d2e6e34ae-3-5cu-ft-compact-refrigerator-mini.jpg",
+        "question": "Тамақты тоңазытқышта сақтау үшін қолданатын бұл зат қалай аталады?",
+        "options": ["Fridge", "Stove", "Dishwasher", "Sink"],
+        "correct": "Fridge",
+    },
+       {
+        "id": "7",
+        "image_url": "https://wallniture.com/cdn/shop/files/wallniture_forte_lgo420_shelf_bur_woo_lvr_rn_ls_v2_2000x2000_59323fb2-d661-4b66-8d4c-362c39b73901.jpg?v=1718376884&width=2500",
+        "question": "Кітаптар мен басқа да заттарды қою үшін қолданатын затты қалай атайды?",
+        "options": ["Chair", "Pillow", "Curtain", "Shelf"],
+        "correct": "Shelf",
+    },
+       {
+        "id": "8",
+        "image_url": "https://www.nilkamalfurniture.com/cdn/shop/files/Mozart_66bfc296-2982-4ee1-883a-50e80a422835_600x.jpg?v=1728031239",
+        "question": "Түнде ұйықтау үшін қолданатын затты қалай атайды?",
+        "options": ["Bed", "Carpet", "Drawer", "Door"],
+        "correct": "Bed",
+    },
+       {
+        "id": "9",
+        "image_url": "https://m.media-amazon.com/images/I/31CPVoKIJmL.jpg",
+        "question": "Су ішетін ыдыс қалай аталады?",
+        "options": ["Kettle", "Spoon", "Plate", "Glass"],
+        "correct": "Glass",
+    },
+       {
+        "id": "10",
+        "image_url": "https://wondershop.sg/media/catalog/product/d/s/dst8020_20_pis_16x9.png?optimize=high&bg-color=255,255,255&fit=bounds&height=700&width=700&canvas=700:700",
+        "question": "Киім үтіктеу үшін қолданатын зат не деп аталады?",
+        "options": ["Fan", "Toaster", "Iron", "Vaccum cleaner"],
+        "correct": "Iron",
     }
 ]
 
@@ -223,7 +265,7 @@ async def send_book_reminder(chat_id: int):
 
 # Сағат пен минутты жаңартылған уақыттарға сәйкес реттеу
 english_schedule = [
-    {'hour': 11, 'minute': 15},
+    {'hour': 11, 'minute': 0},
     {'hour': 13, 'minute': 0},
     {'hour': 18, 'minute': 30},
     {'hour': 21, 'minute': 0}
@@ -280,7 +322,7 @@ async def schedule_group_activities(chat_id: int):
         scheduler.add_job(
             send_scheduled_message,
             'cron',
-            hour=22,
+            hour=21,
             minute=50,
             args=[chat_id, SALAUAT_MESSAGE],
             id=f'group_salauat_{chat_id}',
@@ -573,7 +615,7 @@ async def schedule_reminders(chat_id: int):
             # Salauat message - 22:00
             {
                 'func': send_scheduled_message,
-                'hour': 22,
+                'hour': 21,
                 'minute': 50,
                 'args': [chat_id, SALAUAT_MESSAGE],
                 'id': f'salauat_{chat_id}'
@@ -839,11 +881,11 @@ async def schedule_command(message: Message):
         "📅 *Күнделікті хабарламалар кестесі:*\n\n"
         "🌅 07:00 - Таңғы ескерту\n"
         "📚 10:00 - Кітап оқу уақыты\n"
-        "🇬🇧 11:15 - Ағылшын тілі сабағы\n"
-        "🇬🇧 16:00 - Ағылшын тілі сабағы\n"
+        "🇬🇧 11:00 - Ағылшын тілі сабағы\n"
+        "🇬🇧 14:00 - Ағылшын тілі сабағы\n"
         "🇬🇧 17:00 - Ағылшын тілі сабағы\n"
         "📝 20:00 - Күн қорытындысы\n"
-        "🤲 22:50 - Салауат\n\n"
+        "🤲 21:50 - Салауат\n\n"
         "🔄 Барлық ескертулер *автоматты түрде* жіберіледі."
     )
     try:
