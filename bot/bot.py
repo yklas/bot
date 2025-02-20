@@ -13,6 +13,7 @@ from aiogram import types
 from aiogram.filters import Command
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
+
 # Configuration
 TELEGRAM_TOKEN = "7819420348:AAG8yOE4qVLy9wOUegX__XV-xTnD7U9BzoQ"
 TIMEZONE = pytz.timezone('Asia/Almaty')
@@ -949,6 +950,7 @@ async def check_schedules(message: Message):
 
 
 # Remove duplicate help_command handlers and add schedule command
+# schedule командасын түзету
 @dp.message(Command("schedule"))
 @handle_exceptions
 async def schedule_command(message: Message):
@@ -967,7 +969,6 @@ async def schedule_command(message: Message):
             "⚡️ Хабарламаларды өз уақытында аласыз!"
         )
         
-        # Create keyboard based on chat type
         keyboard = None
         if message.chat.type == 'private':
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -988,13 +989,12 @@ async def schedule_command(message: Message):
         
     except Exception as e:
         logger.error(f"Error in schedule_command: {e}", exc_info=True)
-        await message.answer(
-            "Қателік орын алды. Қайтадан /schedule командасын жіберіңіз."
-        )
+        await message.answer("Қателік орын алды. Қайтадан /schedule командасын жіберіңіз.")
 
 
 
-@dp.message(Command('help'))
+# help командасын түзету
+@dp.message(Command("help"))
 @handle_exceptions
 async def help_command(message: Message):
     """Handle /help command"""
@@ -1024,7 +1024,6 @@ async def help_command(message: Message):
                 [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
             ])
         
-        # Send help message with keyboard
         await message.answer(
             text=help_text,
             reply_markup=keyboard,
@@ -1034,9 +1033,7 @@ async def help_command(message: Message):
         
     except Exception as e:
         logger.error(f"Error in help_command: {e}", exc_info=True)
-        await message.answer(
-            "Қателік орын алды. Қайтадан /help командасын жіберіңіз."
-        )
+        await message.answer("Қателік орын алды. Қайтадан /help командасын жіберіңіз.")
 
 # Ensure the bot is run only if this script is executed directly
 if __name__ == "__main__":
