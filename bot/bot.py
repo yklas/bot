@@ -737,17 +737,15 @@ async def start_command(message: Message):
 async def handle_messages(message: Message):
     """Handle all incoming messages with rate limiting"""
     try:
-        # Check rate limiting
-        if is_rate_limited(message.from_user.id):
-            await message.answer("Тым жиі хабарлама жібердіңіз. Біраз күте тұрыңыз.")
-            return
-
         # Check if message has text
         if not message.text:
             return
 
-        # Convert message to lowercase for case-insensitive matching
+        # Convert message to lowercase and strip whitespace
         text = message.text.lower().strip()
+        
+        # Log incoming message for debugging
+        logger.info(f"Received message: '{text}' in chat {message.chat.id}")
 
         # Check if the message is in BASIC_RESPONSES
         if text in BASIC_RESPONSES:
@@ -770,20 +768,23 @@ async def handle_messages(message: Message):
                     reply_markup=keyboard
                 )
                 
+                # Log successful response
+                logger.info(f"Successfully sent response for '{text}' in chat {message.chat.id}")
+                
                 # Update tracking
                 if message.chat.type == 'private':
                     active_users.add(message.chat.id)
                 elif message.chat.type in ['group', 'supergroup']:
                     group_ids.add(message.chat.id)
-                    
-                logger.info(f"Successfully responded to message '{text}' in chat {message.chat.id}")
+                    save_group_ids()  # Save updated group IDs
                 
             except Exception as e:
-                logger.error(f"Error sending basic response for '{text}': {e}")
-                raise  # Let the decorator handle the error
+                logger.error(f"Error sending response for '{text}': {e}", exc_info=True)
+                await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
 
     except Exception as e:
-        logger.error(f"Error in handle_messages: {e}")
+        logger.error(f"Error in handle_messages: {e}", exc_info=True)
+        await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
         # The decorator will handle sending the error message to the user
 
 
