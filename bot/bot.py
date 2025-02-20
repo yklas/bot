@@ -799,7 +799,44 @@ async def shutdown(dispatcher: Dispatcher):
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")
 
-# Update main function with proper shutdown handling
+# Add command registration to main function
+async def register_commands(bot: Bot):
+    """Register bot commands"""
+    commands = [
+        types.BotCommand(command="start", description="Ботты бастау"),
+        types.BotCommand(command="help", description="Көмек алу"),
+        types.BotCommand(command="schedule", description="Кесте көру")
+    ]
+    await bot.set_my_commands(commands)
+    logger.info("Bot commands registered successfully")
+
+# Update main function to include command registration
+async def main() -> None:
+    """Main function to start the bot"""
+    try:
+        # Load saved group IDs
+        global group_ids
+        group_ids = load_group_ids()
+        
+        # Register commands
+        await register_commands(bot)
+        
+        # Start scheduler if not running
+        if not scheduler.running:
+            scheduler.start()
+            
+        # Schedule reminders for existing groups
+        for group_id in group_ids:
+            await schedule_reminders(group_id)
+            
+        # Start polling
+        logger.info("Bot started successfully")
+        await dp.start_polling(bot)
+        
+    except Exception as e:
+        logger.error(f"Critical error in main function: {e}", exc_info=True)
+    finally:
+        await shutdown(dp)# Update main function with proper shutdown handling
 async def main() -> None:
     """Main function to start the bot with proper error handling"""
     try:
@@ -873,35 +910,94 @@ async def help_command(message: Message):
         await message.answer(help_text, reply_markup=keyboard, parse_mode="Markdown")
     except Exception as e:
         logger.error(f"Error in help_command: {e}")
-        await message.answer("Қателік орын алды. Қайтадан көріңіз.")
-
-@dp.message(Command('schedule'))
-async def schedule_command(message: Message):
-    """Handle /schedule command"""
-    schedule_text = (
-        "📅 *Күнделікті хабарламалар кестесі:*\n\n"
-        "🌅 07:00 - Таңғы ескерту\n"
-        "📚 10:00 - Кітап оқу уақыты\n"
-        "🇬🇧 13:00 - Ағылшын тілі сабағы\n"
-        "🇬🇧 18:00 - Ағылшын тілі сабағы\n"
-        "🇬🇧 21:00 - Ағылшын тілі сабағы\n"
-        "📝 20:00 - Күн қорытындысы\n"
-        "🤲 21:50 - Салауат\n\n"
-        "🔄 Барлық ескертулер *автоматты түрде* жіберіледі."
-    )
+        await message.answer("Қателік орын алды. Қайтадан көріңіз.")@dp.message(Command('help'))
+@handle_exceptions
+async def help_command(message: Message):
+    """Handle /help command"""
     try:
-        # Create appropriate keyboard based on chat type
+        help_text = (
+            "🤖 *Бот көмекшісі*\n\n"
+            "Негізгі командалар:\n"
+            "🔹 /start - Ботты қайта іске қосу\n"
+            "🔹 /help - Көмек алу\n"
+            "🔹 /schedule - Хабарламалар кестесі\n\n"
+            "📱 Қосымша мүмкіндіктер:\n"
+            "📚 Ағылшын тілін үйрену\n"
+            "🕐 Күнделікті ескертулер\n"
+            "📝 Жетістіктерді бақылау\n\n"
+            "❓ Сұрақтарыңыз болса, еркін жазыңыз!"
+        )
+        
+        # Create keyboard based on chat type
+        keyboard = None
         if message.chat.type == 'private':
-            keyboard = get_english_menu()
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")],
+                [InlineKeyboardButton(text="📊 Менің жетістіктерім", callback_data="my_progress")]
+            ])
         else:
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
             ])
-            
-        await message.answer(schedule_text, reply_markup=keyboard, parse_mode="Markdown")
+        
+        # Send help message with keyboard
+        await message.answer(
+            text=help_text,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        logger.info(f"Help command sent successfully in chat {message.chat.id}")
+        
     except Exception as e:
-        logger.error(f"Error in schedule_command: {e}")
-        await message.answer("Қателік орын алды. Қайтадан көріңіз.")
+        logger.error(f"Error in help_command: {e}", exc_info=True)
+        await message.answer(
+            "Қателік орын алды. Қайтадан /help командасын жіберіңіз."
+        )
+
+
+@dp.message(Command('help'))
+@handle_exceptions
+async def help_command(message: Message):
+    """Handle /help command"""
+    try:
+        help_text = (
+            "🤖 *Бот көмекшісі*\n\n"
+            "Негізгі командалар:\n"
+            "🔹 /start - Ботты қайта іске қосу\n"
+            "🔹 /help - Көмек алу\n"
+            "🔹 /schedule - Хабарламалар кестесі\n\n"
+            "📱 Қосымша мүмкіндіктер:\n"
+            "📚 Ағылшын тілін үйрену\n"
+            "🕐 Күнделікті ескертулер\n"
+            "📝 Жетістіктерді бақылау\n\n"
+            "❓ Сұрақтарыңыз болса, еркін жазыңыз!"
+        )
+        
+        # Create keyboard based on chat type
+        keyboard = None
+        if message.chat.type == 'private':
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")],
+                [InlineKeyboardButton(text="📊 Менің жетістіктерім", callback_data="my_progress")]
+            ])
+        else:
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
+            ])
+        
+        # Send help message with keyboard
+        await message.answer(
+            text=help_text,
+            reply_markup=keyboard,
+            parse_mode="Markdown"
+        )
+        logger.info(f"Help command sent successfully in chat {message.chat.id}")
+        
+    except Exception as e:
+        logger.error(f"Error in help_command: {e}", exc_info=True)
+        await message.answer(
+            "Қателік орын алды. Қайтадан /help командасын жіберіңіз."
+        )
 
 # Ensure the bot is run only if this script is executed directly
 if __name__ == "__main__":
