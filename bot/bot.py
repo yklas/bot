@@ -9,6 +9,9 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import random
 from typing import List, Dict
 import json 
+from aiogram import types
+from aiogram.filters import Command
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 
 # Configuration
 TELEGRAM_TOKEN = "7819420348:AAG8yOE4qVLy9wOUegX__XV-xTnD7U9BzoQ"
