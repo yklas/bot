@@ -810,13 +810,96 @@ async def shutdown(dispatcher: Dispatcher):
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")
 
-# Add command registration to main function
+# Stop командасын қосу
+@dp.message(Command("stop"))
+@handle_exceptions
+async def stop_command(message: Message):
+    """Handle /stop command to unsubscribe user from bot"""
+    try:
+        chat_id = message.chat.id
+        
+        # Тек жеке чатта жұмыс істеу керек
+        if message.chat.type != 'private':
+            await message.answer("❌ Бұл команда тек жеке чатта жұмыс істейді.")
+            return
+
+        # Пайдаланушыдан растау сұрау
+        confirm_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Иә, тоқтату", callback_data="confirm_stop"),
+                InlineKeyboardButton(text="❌ Жоқ, бас тарту", callback_data="cancel_stop")
+            ]
+        ])
+        
+        await message.answer(
+            "❗️ Сіз ботты тоқтатқыңыз келе ме?\n\n"
+            "Бұл әрекет:\n"
+            "- Күнделікті хабарламаларды тоқтатады\n"
+            "- Сіздің оқу прогресіңіз сақталады\n"
+            "- Кез-келген уақытта /start командасымен қайта бастай аласыз",
+            reply_markup=confirm_keyboard
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in stop_command: {e}", exc_info=True)
+        await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
+
+# Тоқтатуды растау/бас тарту үшін callback handler-лер
+@dp.callback_query(lambda c: c.data == "confirm_stop")
+async def confirm_stop(callback_query: CallbackQuery):
+    """Handle stop confirmation"""
+    try:
+        chat_id = callback_query.message.chat.id
+        
+        # Remove from active users
+        if chat_id in active_users:
+            active_users.discard(chat_id)
+        
+        # Remove all scheduled jobs for this user
+        jobs = scheduler.get_jobs()
+        for job in jobs:
+            if str(chat_id) in job.id:
+                scheduler.remove_job(job.id)
+        
+        # Remove keyboard and update message
+        await callback_query.message.edit_text(
+            "✅ Бот сәтті тоқтатылды!\n\n"
+            "Қайта бастау үшін /start командасын жіберіңіз.\n"
+            "Сау болыңыз! 👋"
+        )
+        
+        logger.info(f"User {chat_id} stopped the bot")
+        
+    except Exception as e:
+        logger.error(f"Error in confirm_stop: {e}", exc_info=True)
+        await callback_query.message.edit_text(
+            "Қателік орын алды. Қайтадан әрекеттеніп көріңіз."
+        )
+
+@dp.callback_query(lambda c: c.data == "cancel_stop")
+async def cancel_stop(callback_query: CallbackQuery):
+    """Handle stop cancellation"""
+    try:
+        # Remove confirmation keyboard and update message
+        await callback_query.message.edit_text(
+            "✅ Бас тартылды. Бот жұмысын жалғастыра береді!"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in cancel_stop: {e}", exc_info=True)
+        await callback_query.message.edit_text(
+            "Қателік орын алды. Қайтадан әрекеттеніп көріңіз."
+        )
+
+
+# register_commands функциясын жаңарту
 async def register_commands(bot: Bot):
     """Register bot commands"""
     commands = [
         types.BotCommand(command="start", description="Ботты бастау"),
         types.BotCommand(command="help", description="Көмек алу"),
-        types.BotCommand(command="schedule", description="Кесте көру")
+        types.BotCommand(command="schedule", description="Кесте көру"),
+        types.BotCommand(command="stop", description="Ботты тоқтату")  # Жаңа команда
     ]
     await bot.set_my_commands(commands)
     logger.info("Bot commands registered successfully")
