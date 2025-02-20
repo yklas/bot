@@ -33,10 +33,13 @@ dp = Dispatcher()
 active_users: set[int] = set()
 group_ids: set[int] = set()
 
-# Add error handling decorator
+# Update error handling decorator
 def handle_exceptions(func):
     async def wrapper(*args, **kwargs):
         try:
+            # Remove dispatcher from kwargs if it exists
+            if 'dispatcher' in kwargs:
+                del kwargs['dispatcher']
             return await func(*args, **kwargs)
         except Exception as e:
             logger.error(f"Error in {func.__name__}: {e}", exc_info=True)
@@ -59,6 +62,7 @@ def handle_exceptions(func):
                 except Exception as send_error:
                     logger.error(f"Error sending error message: {send_error}")
     return wrapper
+
 
 
 # English learning content
@@ -732,11 +736,16 @@ async def start_command(message: Message):
         logger.error(f"Error in start_command: {e}")
         await message.reply("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
         
+# Update message handler
 @dp.message()
-@handle_exceptions
 async def handle_messages(message: Message):
     """Handle all incoming messages with rate limiting"""
     try:
+        # Check rate limiting
+        if is_rate_limited(message.from_user.id):
+            await message.answer("Тым жиі хабарлама жібердіңіз. Біраз күте тұрыңыз.")
+            return
+
         # Check if message has text
         if not message.text:
             return
@@ -776,7 +785,7 @@ async def handle_messages(message: Message):
                     active_users.add(message.chat.id)
                 elif message.chat.type in ['group', 'supergroup']:
                     group_ids.add(message.chat.id)
-                    save_group_ids()  # Save updated group IDs
+                    save_group_ids()
                 
             except Exception as e:
                 logger.error(f"Error sending response for '{text}': {e}", exc_info=True)
@@ -785,7 +794,6 @@ async def handle_messages(message: Message):
     except Exception as e:
         logger.error(f"Error in handle_messages: {e}", exc_info=True)
         await message.answer("Қателік орын алды. Қайтадан әрекеттеніп көріңіз.")
-        # The decorator will handle sending the error message to the user
 
 
 # Add proper cleanup on shutdown
