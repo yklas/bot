@@ -845,38 +845,6 @@ async def main() -> None:
         logger.error(f"Critical error in main function: {e}", exc_info=True)
     finally:
         await shutdown(dp)# Update main function with proper shutdown handling
-async def main() -> None:
-    """Main function to start the bot with proper error handling"""
-    try:
-
-        global group_ids
-        group_ids = load_group_ids()
-       
-
-        # Start the scheduler
-        if not scheduler.running:
-            scheduler.start()
-            logger.info(f"Loaded group IDs: {group_ids}")
-
-        # Schedule reminders for all known groups
-            for group_id in group_ids:
-                await schedule_reminders(group_id)
-                logger.info(f"Scheduled reminders for group: {group_id}")
-        # Set up commands
-        commands_list = [
-            types.BotCommand(command="start", description="Бастау / Start the bot"),
-            types.BotCommand(command="help", description="Көмек / Help information"),
-            types.BotCommand(command="schedule", description="Кесте / Show schedule"),
-        ]
-        await bot.set_my_commands(commands_list)
-        
-        # Start polling with proper error handling
-        logger.info("Bot started successfully")
-        await dp.start_polling(bot)
-    except Exception as e:
-        logger.error(f"Critical error in main function: {e}", exc_info=True)
-    finally:
-        await shutdown(dp)
 
 
 @dp.message(Command("check_schedules"))
@@ -893,47 +861,24 @@ async def check_schedules(message: Message):
     except Exception as e:
         logger.error(f"Error checking schedules: {e}")
 
-@dp.message(Command('help'))
-async def help_command(message: Message):
-    """Handle /help command"""
-    help_text = (
-        "🤖 *Менің мүмкіндіктерім:*\n\n"
-        "🔹 /start - Ботты іске қосу\n"
-        "🔹 /help - Көмек алу\n"
-        "🔹 /schedule - Хабарламалар кестесін қарау\n\n"
-        "📚 Ағылшын тілін үйрену мүмкіндігін пайдалану үшін тиісті батырманы басыңыз.\n"
-        "🕘 Ескертулер күн бойы белгіленген уақытта жіберіледі.\n"
-        "❓ Мәтіндік сұрақтарға автоматты түрде жауап беремін.\n\n"
-        "📱 Тапсырмаларды орындап, біліміңізді жетілдіріңіз!"
-    )
-    try:
-        # Create appropriate keyboard based on chat type
-        if message.chat.type == 'private':
-            keyboard = get_english_menu()
-        else:
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
-            ])
-            
-        await message.answer(help_text, reply_markup=keyboard, parse_mode="Markdown")
-    except Exception as e:
-        logger.error(f"Error in help_command: {e}")
-        await message.answer("Қателік орын алды. Қайтадан көріңіз.")@dp.message(Command('help'))
+
+# Remove duplicate help_command handlers and add schedule command
+@dp.message(Command("schedule"))
 @handle_exceptions
-async def help_command(message: Message):
-    """Handle /help command"""
+async def schedule_command(message: Message):
+    """Handle /schedule command"""
     try:
-        help_text = (
-            "🤖 *Бот көмекшісі*\n\n"
-            "Негізгі командалар:\n"
-            "🔹 /start - Ботты қайта іске қосу\n"
-            "🔹 /help - Көмек алу\n"
-            "🔹 /schedule - Хабарламалар кестесі\n\n"
-            "📱 Қосымша мүмкіндіктер:\n"
-            "📚 Ағылшын тілін үйрену\n"
-            "🕐 Күнделікті ескертулер\n"
-            "📝 Жетістіктерді бақылау\n\n"
-            "❓ Сұрақтарыңыз болса, еркін жазыңыз!"
+        schedule_text = (
+            "📅 *Күнделікті хабарламалар кестесі*\n\n"
+            "🌅 07:00 - Таңғы сәлемдесу\n"
+            "📚 10:00 - Кітап оқу уақыты\n"
+            "🇬🇧 13:00 - Ағылшын тілі сабағы\n"
+            "📝 16:00 - Күндізгі белсенділік\n"
+            "🌟 18:00 - Ағылшын тілі сабағы\n"
+            "📊 20:00 - Күн қорытындысы\n"
+            "🌙 21:00 - Ағылшын тілі сабағы\n"
+            "🤲 21:50 - Салауат\n\n"
+            "⚡️ Хабарламаларды өз уақытында аласыз!"
         )
         
         # Create keyboard based on chat type
@@ -948,19 +893,19 @@ async def help_command(message: Message):
                 [InlineKeyboardButton(text="📚 Ағылшын тілін үйрену", callback_data="learn_english")]
             ])
         
-        # Send help message with keyboard
         await message.answer(
-            text=help_text,
+            text=schedule_text,
             reply_markup=keyboard,
             parse_mode="Markdown"
         )
-        logger.info(f"Help command sent successfully in chat {message.chat.id}")
+        logger.info(f"Schedule command sent successfully in chat {message.chat.id}")
         
     except Exception as e:
-        logger.error(f"Error in help_command: {e}", exc_info=True)
+        logger.error(f"Error in schedule_command: {e}", exc_info=True)
         await message.answer(
-            "Қателік орын алды. Қайтадан /help командасын жіберіңіз."
+            "Қателік орын алды. Қайтадан /schedule командасын жіберіңіз."
         )
+
 
 
 @dp.message(Command('help'))
